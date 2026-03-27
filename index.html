@@ -114,6 +114,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink)
 .shift-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;width:64px;transition:filter .12s;border:none;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .shift-btn:hover{filter:brightness(.9)}
 .shift-cell{cursor:pointer;touch-action:manipulation}
+.staffing-slot-row{display:grid;grid-template-columns:minmax(72px,1fr) 86px 14px 86px 58px 58px 30px;gap:6px;align-items:end;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
 .td-summary{background:#f0f3ff!important;font-size:10px;position:sticky;bottom:0;z-index:8}
 .td-summary td{background:#f0f3ff;font-family:'DM Mono',monospace;padding:5px 4px}
 .td-summary td.td-date{background:#e8ecfc}
@@ -218,19 +219,53 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink)
   #toast{bottom:68px!important}
   .modal-overlay{align-items:flex-end!important;padding:0!important}
   .modal{width:100%!important;max-width:100%!important;border-radius:18px 18px 0 0!important;margin:0!important}
-  .modal-body{max-height:74vh}
-  .modal-hd{padding:16px 18px 0}
+  .modal-body{max-height:72vh;overflow-y:auto}
+  .modal-hd{padding:14px 16px 0}
+  .modal-tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
   .month-nav{flex-wrap:wrap;gap:6px}
-  .shift-btn{width:100%!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:12px;padding:5px 3px;border-radius:8px}
-  .shift-cell{padding:2px!important}
+
+  /* ── シフト表：列幅圧縮・全スタッフ1画面表示 ── */
+  .shift-table th{padding:5px 2px;font-size:10px}
+  .shift-table th.th-date{width:58px;padding-left:6px}
+  .shift-table td{min-width:48px;padding:1px}
+  .shift-table td.td-date{min-width:58px;padding:4px 5px}
+  .shift-btn{width:100%!important;min-height:40px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:11px;padding:3px 2px;border-radius:6px}
+  .shift-cell{padding:1px!important}
+  /* スタッフ列ヘッダー：アバター・バッジ非表示、名前縮小 */
+  .staff-head{gap:2px;padding:3px 1px}
+  .staff-head .av-sm{display:none}
+  .staff-name{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44px}
+  .staff-role-badge{display:none}
+  /* 人員チェック列を非表示（幅110px節約） */
+  .shift-table .td-total,.shift-table th:last-child{display:none!important}
+  /* 月計フッターのチェックセルも非表示 */
+  .td-summary td:last-child{display:none!important}
+
+  /* ── スタッフ管理テーブル ── */
+  #page-staff .card{overflow-x:auto}
+  .tbl th,.tbl td{padding:7px 7px;font-size:11px;white-space:nowrap}
+
+  /* ── 月次集計 ── */
   #sumStats{grid-template-columns:1fr 1fr!important}
+  .sum-tbl{font-size:11px}
+  .sum-tbl th,.sum-tbl td{padding:6px 6px}
+
+  /* ── フォーム ── */
   .fg2{grid-template-columns:1fr!important}
   .fg3{grid-template-columns:1fr 1fr!important}
+
+  /* ── 時間帯エディタ（設定モーダル）── */
+  .staffing-slot-row{grid-template-columns:1fr 1fr!important;grid-template-rows:auto auto auto!important}
+  .staffing-slot-row .ss-sep{display:none}
+
+  /* ── その他 ── */
   .topbar-title{font-size:14px}
   #gDrop{border-radius:14px 14px 0 0!important}
   .drop-item{padding:11px 16px}
   .drop-label{font-size:13px}
   .drop-time{font-size:11px}
+  .mobile-drawer{overflow-y:auto;max-height:calc(100vh - 56px)}
+  .stat-n{font-size:18px}
 }
 </style>
 </head>
@@ -791,10 +826,10 @@ function renderStaffingSlotEditor(){
   const showE=document.getElementById('staffingSepWe')?.checked;
   wrap.innerHTML=list.map((s,i)=>{
     const lab=escHtml(s.label);
-    return `<div class="staffing-slot-row" data-idx="${i}" style="display:grid;grid-template-columns:minmax(72px,1fr) 86px 14px 86px 58px 58px 30px;gap:6px;align-items:end;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+    return `<div class="staffing-slot-row" data-idx="${i}">
       <div class="field" style="margin:0"><label style="font-size:10px">名称</label><input type="text" class="ss-label" value="${lab}" style="width:100%"></div>
       <div class="field" style="margin:0"><label style="font-size:10px">開始</label><input type="time" class="ss-start" value="${s.startTime||'09:00'}"></div>
-      <span style="font-size:11px;color:var(--ink3);padding-bottom:8px">〜</span>
+      <span class="ss-sep" style="font-size:11px;color:var(--ink3);padding-bottom:8px">〜</span>
       <div class="field" style="margin:0"><label style="font-size:10px">終了</label><input type="time" class="ss-end" value="${s.endTime||'18:00'}"></div>
       <div class="field" style="margin:0"><label style="font-size:10px">平日最低</label><input type="number" class="ss-minw" min="0" max="9" value="${s.minW}"></div>
       <div class="field ss-mine-wrap" style="margin:0;display:${showE?'block':'none'}"><label style="font-size:10px">土日最低</label><input type="number" class="ss-mine" min="0" max="9" value="${s.minE}"></div>
