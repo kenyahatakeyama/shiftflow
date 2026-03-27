@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShiftFlow — 月次シフト管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#18181f;--ink2:#52526e;--ink3:#9898b8;
+  --bg:#f2f2f8;--card:#fff;--border:#e4e4f0;--border2:#d0d0e8;
+  --accent:#2d55e8;--accent-soft:#eaeffe;
+  --green:#189e6a;--green-soft:#e4f7ef;
+  --amber:#c47d00;--amber-soft:#fff6e0;
+  --red:#d63b3b;--red-soft:#ffeaea;
+  --purple:#7c3fe4;--purple-soft:#f3eeff;
+  --teal:#0891b2;--teal-soft:#e0f5fb;
+  --r:8px;--rlg:14px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);font-size:13px;min-height:100vh}
+
+/* ====== LAYOUT ====== */
+.layout{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:210px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-brand{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-name{font-size:16px;font-weight:700;color:#fff;letter-spacing:.3px}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.35);margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
+.nav{padding:10px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 18px;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.05)}
+.nav-item.active{color:#fff;background:rgba(45,85,232,.2);border-left-color:#7b9fff}
+.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.8}
+.nav-sep{height:1px;background:rgba(255,255,255,.07);margin:6px 0}
+.sidebar-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;color:rgba(255,255,255,.25)}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 22px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0}
+.topbar-title{font-size:15px;font-weight:700;white-space:nowrap}
+.content{flex:1;overflow:auto;padding:18px 22px}
+
+/* PAGE VISIBILITY */
+.page{display:none}.page.active{display:block}
+
+/* ====== BUTTONS ====== */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;font-family:inherit;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}.btn-primary:hover{background:#2248cc}
+.btn-ghost{background:transparent;color:var(--ink2);border-color:var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--ink)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}.btn-danger:hover{background:#b53030}
+.btn-xs{padding:4px 9px;font-size:11px}
+.btn-icon{padding:6px 8px}
+
+/* ====== FORM ====== */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:500;color:var(--ink2);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;color:var(--ink);background:var(--card);outline:none;transition:border .15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+/* ====== CARDS ====== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--rlg);padding:16px;box-shadow:0 1px 3px rgba(20,20,60,.05)}
+.card-sm{padding:12px 14px}
+.card-hd{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px}
+.stat-n{font-size:22px;font-weight:700;font-family:'DM Mono',monospace;color:var(--ink);line-height:1}
+.stat-l{font-size:10px;color:var(--ink3);margin-top:4px;letter-spacing:.3px}
+.stat-sub{font-size:11px;color:var(--ink2);margin-top:2px}
+
+/* ====== BADGE ====== */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;line-height:1.4}
+.b-blue{background:var(--accent-soft);color:var(--accent)}
+.b-green{background:var(--green-soft);color:var(--green)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-purple{background:var(--purple-soft);color:var(--purple)}
+.b-gray{background:#ebebf5;color:var(--ink3)}
+
+/* ====== AVATAR ====== */
+.av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:11px}
+.av-sm{width:28px;height:28px;font-size:10px}
+.av-md{width:34px;height:34px;font-size:12px}
+
+/* ====== MONTHLY SHIFT TABLE ====== */
+.month-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.month-label{font-size:15px;font-weight:700;min-width:120px}
+
+.shift-wrap{overflow:auto;border-radius:var(--rlg);border:1px solid var(--border);background:var(--card);box-shadow:0 1px 3px rgba(20,20,60,.05)}
+.shift-table{border-collapse:collapse;min-width:max-content;width:100%}
+.shift-table th{background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:8px 6px;border:1px solid var(--border);white-space:nowrap;text-align:center;position:sticky;top:0;z-index:10}
+.shift-table th.th-date{width:80px;text-align:left;padding-left:12px;position:sticky;left:0;z-index:20;background:var(--bg)}
+.shift-table td{border:1px solid var(--border);padding:3px 4px;text-align:center;vertical-align:middle;min-width:72px}
+.shift-table td.td-date{position:sticky;left:0;z-index:5;background:var(--card);padding:5px 10px;text-align:left;white-space:nowrap;min-width:80px}
+.shift-table td.td-date.is-sat{background:#f0f5ff}
+.shift-table td.td-date.is-sun{background:#fff4f4}
+.shift-table tr.is-today td{background:#f8fbff}
+.shift-table tr.is-today td.td-date{background:#eaf1ff;border-left:3px solid var(--accent)}
+.shift-table tr:hover td{background:#fafafe}
+.shift-table tr:hover td.td-date{background:#f5f5ff}
+.shift-table td.td-date.is-sat:hover,.shift-table tr:hover td.td-date.is-sat{background:#e8efff}
+.shift-table td.td-date.is-sun:hover,.shift-table tr:hover td.td-date.is-sun{background:#ffeeee}
+.shift-table td.td-total{background:#f8f8fc;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;white-space:nowrap;position:sticky;right:0;z-index:5}
+
+.date-main{font-size:12px;font-weight:700}
+.date-wd{font-size:10px;margin-left:4px}
+.is-sat .date-main,.is-sat .date-wd{color:#2d55e8}
+.is-sun .date-main,.is-sun .date-wd{color:#d63b3b}
+
+.staff-head{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px}
+.staff-name{font-size:11px;font-weight:700;color:var(--ink)}
+.staff-role-badge{font-size:9px;padding:1px 6px;border-radius:10px}
+
+.shift-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;width:64px;transition:filter .12s;border:none;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.shift-btn:hover{filter:brightness(.9)}
+.shift-cell{cursor:pointer;touch-action:manipulation}
+.td-summary{background:#f0f3ff!important;font-size:10px;position:sticky;bottom:0;z-index:8}
+.td-summary td{background:#f0f3ff;font-family:'DM Mono',monospace;padding:5px 4px}
+.td-summary td.td-date{background:#e8ecfc}
+
+/* ====== DROPDOWN ====== */
+#gDrop{display:none;position:fixed;background:var(--card);border:1px solid var(--border2);border-radius:var(--rlg);box-shadow:0 8px 28px rgba(18,18,50,.14);z-index:500;min-width:200px;padding:6px}
+.drop-item{display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:var(--r);cursor:pointer;transition:background .1s}
+.drop-item:hover{background:var(--bg)}
+.drop-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.drop-label{font-size:12px;font-weight:600}
+.drop-time{font-size:10px;color:var(--ink3);margin-left:auto}
+.drop-sep{height:1px;background:var(--border);margin:4px 0}
+
+/* ====== SETTINGS MODAL ====== */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,30,.45);display:none;align-items:flex-start;justify-content:center;z-index:800;overflow-y:auto;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:var(--rlg);padding:0;width:620px;max-width:96vw;box-shadow:0 20px 60px rgba(10,10,40,.18);overflow:hidden}
+.modal-hd{padding:18px 22px 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;line-height:1;padding:2px 6px}
+.modal-body{padding:16px 22px 22px;max-height:80vh;overflow-y:auto}
+.modal-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.mtab{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--ink3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+.mtab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.mpanel{display:none}.mpanel.active{display:block}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+
+/* ====== STAFF TABLE ====== */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;font-weight:700;color:var(--ink3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;background:var(--bg)}
+.tbl td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafafe}
+
+/* ====== SUMMARY TABLE ====== */
+.sum-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.sum-tbl th{font-size:11px;font-weight:700;color:var(--ink3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;background:var(--bg);white-space:nowrap;position:sticky;top:0}
+.sum-tbl th:first-child{text-align:left}
+.sum-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle}
+.sum-tbl td:first-child{text-align:left}
+.sum-tbl tr:last-child td{border-bottom:none}
+.sum-tbl tr:hover td{background:#fafafe}
+.pbar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;min-width:50px}
+.pbar-fill{height:100%;border-radius:3px;transition:width .3s}
+.mono{font-family:'DM Mono',monospace}
+
+/* ====== PRINT ====== */
+@media print{
+  .sidebar,.topbar,.no-print{display:none!important}
+  .layout{display:block}.main{overflow:visible}
+  .content{padding:0;overflow:visible}
+  .page{display:block!important}
+  .shift-wrap{overflow:visible}
+  .shift-table{min-width:unset}
+  body{font-size:9px}
+  .shift-btn{font-size:9px!important;padding:2px 4px!important;width:52px!important}
+}
+
+/* ====== MISC ====== */
+.toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12px;color:var(--ink2)}
+.toggle-sw{width:32px;height:18px;background:var(--border2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-sw::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input{display:none}
+.toggle input:checked+.toggle-sw{background:var(--accent)}
+.toggle input:checked+.toggle-sw::after{left:16px}
+.section-title{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.6px;text-transform:uppercase;margin:16px 0 8px}
+.sep{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--bg);color:var(--ink2);border:1px solid var(--border)}
+.chip.ok{background:var(--green-soft);color:var(--green);border-color:#bdebd7}
+.auth-badge{font-size:10px;padding:3px 9px;border-radius:20px;background:#eef2ff;color:var(--accent);font-weight:700;border:1px solid #dbe5ff}
+#toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:#fff;padding:9px 18px;border-radius:var(--r);font-size:12px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+
+.blurred{filter:blur(4px);user-select:none}
+
+/* ====== MOBILE ====== */
+.mob-actions{display:none}
+.mob-topbar-btn{display:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:var(--r);border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--ink2);flex-shrink:0}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:56px;background:var(--ink);z-index:200;border-top:1px solid rgba(255,255,255,.08)}
+.mnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.38);font-size:9px;font-weight:600;cursor:pointer;padding:6px 2px;border:none;background:none;font-family:inherit;transition:color .15s;-webkit-tap-highlight-color:transparent;letter-spacing:.3px}
+.mnav-item.active{color:#fff}
+.mnav-item svg{width:20px;height:20px}
+.mob-overlay{display:none;position:fixed;inset:0;z-index:198;background:rgba(10,10,30,.38)}
+.mob-overlay.open{display:block}
+.mobile-drawer{position:fixed;bottom:56px;left:0;right:0;background:var(--card);border-radius:18px 18px 0 0;box-shadow:0 -8px 32px rgba(10,10,40,.18);z-index:199;transform:translateY(110%);transition:transform .26s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.mobile-drawer.open{transform:translateY(0);pointer-events:auto}
+.drawer-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 6px}
+.drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-top:1px solid var(--border);padding-bottom:2px}
+.drawer-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:16px 8px;font-size:11px;font-weight:600;color:var(--ink2);cursor:pointer;border:none;background:var(--card);font-family:inherit;text-align:center;transition:background .1s;-webkit-tap-highlight-color:transparent;line-height:1.2}
+.drawer-item svg{width:22px;height:22px}
+.drawer-item:active{background:var(--bg)}
+.drawer-item.accent,.drawer-item.accent svg{color:var(--accent)}
+.drawer-item.danger,.drawer-item.danger svg{color:var(--red)}
+
+@media(max-width:768px){
+  .sidebar{display:none!important}
+  .mobile-nav{display:flex}
+  .mob-actions{display:flex;gap:8px;align-items:center}
+  .mob-topbar-btn{display:flex}
+  .topbar-desk{display:none!important}
+  .topbar{padding:0 12px;height:48px}
+  .content{padding:10px 8px 70px}
+  #toast{bottom:68px!important}
+  .modal-overlay{align-items:flex-end!important;padding:0!important}
+  .modal{width:100%!important;max-width:100%!important;border-radius:18px 18px 0 0!important;margin:0!important}
+  .modal-body{max-height:74vh}
+  .modal-hd{padding:16px 18px 0}
+  .month-nav{flex-wrap:wrap;gap:6px}
+  .shift-btn{width:100%!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:12px;padding:5px 3px;border-radius:8px}
+  .shift-cell{padding:2px!important}
+  #sumStats{grid-template-columns:1fr 1fr!important}
+  .fg2{grid-template-columns:1fr!important}
+  .fg3{grid-template-columns:1fr 1fr!important}
+  .topbar-title{font-size:14px}
+  #gDrop{border-radius:14px 14px 0 0!important}
+  .drop-item{padding:11px 16px}
+  .drop-label{font-size:13px}
+  .drop-time{font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-name">ShiftFlow</div>
+    <div class="brand-sub">月次シフト管理</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('monthly')">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      月次シフト表
+    </div>
+    <div class="nav-item" onclick="showPage('summary')">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      月次集計
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" onclick="showPage('staff')" id="navStaff">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
+      スタッフ管理
+    </div>
+    <div class="nav-item" onclick="openSettings()" id="navSettings">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      設定
+    </div>
+  </nav>
+  <div class="sidebar-foot">ShiftFlow v2.0</div>
+</aside>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title" id="topTitle">月次シフト表</span>
+      <span class="auth-badge no-print" id="authBadge">管理者</span>
+    </div>
+    <div class="no-print mob-actions">
+      <button class="mob-topbar-btn" onclick="openAuthModal()" title="権限切替"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
+      <button class="mob-topbar-btn" onclick="toggleMobileDrawer()"><svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center" class="no-print topbar-desk">
+      <button class="btn btn-ghost" onclick="openAuthModal()">権限切替</button>
+      <button class="btn btn-ghost" onclick="openStaffPinModal()" id="btnStaffPin" style="display:none">PIN変更</button>
+      <button class="btn btn-ghost" onclick="goToCurrentMonth()">今月</button>
+      <button class="btn btn-ghost" onclick="openWishModal()">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        希望条件入力
+      </button>
+      <button class="btn btn-ghost" onclick="autoFill()" id="btnAutoFill">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        自動生成
+      </button>
+      <button class="btn btn-ghost" onclick="window.print()">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        印刷
+      </button>
+      <button class="btn btn-ghost" onclick="saveToLocal(true)">保存</button>
+      <button class="btn btn-ghost" onclick="exportBackup()" id="btnBackup">バックアップ出力</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('backupInput').click()" id="btnRestore">復元</button>
+      <button class="btn btn-primary" onclick="openSettings()" id="btnSettingsTop">
+        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        設定
+      </button>
+      <span class="chip ok" id="saveState">保存済み</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== MONTHLY SHIFT ===== -->
+    <div class="page active" id="page-monthly">
+      <div class="month-nav no-print">
+        <button class="btn btn-ghost" onclick="changeMonth(-1)">← 前月</button>
+        <span class="month-label" id="monthLabel"></span>
+        <button class="btn btn-ghost" onclick="changeMonth(1)">翌月 →</button>
+        <span id="overAlerts" style="margin-left:8px"></span>
+      </div>
+      <div class="shift-wrap">
+        <table class="shift-table" id="shiftTable"></table>
+      </div>
+    </div>
+
+    <!-- ===== SUMMARY ===== -->
+    <div class="page" id="page-summary">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px" class="no-print">
+        <div>
+          <label style="font-size:11px;color:var(--ink3);margin-right:6px">対象月</label>
+          <select id="sumMonthSel" onchange="renderSummary()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px"></select>
+        </div>
+        <button class="btn btn-ghost" onclick="exportCSV()">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          CSV出力
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px" id="sumStats"></div>
+      <div class="card" style="padding:0;overflow:auto">
+        <table class="sum-tbl" id="sumTable"></table>
+      </div>
+    </div>
+
+    <!-- ===== STAFF ===== -->
+    <div class="page" id="page-staff">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px" class="no-print">
+        <span style="font-size:12px;color:var(--ink3)">登録スタッフ: <b id="staffCnt" style="color:var(--ink)">0</b>名</span>
+        <button class="btn btn-primary" onclick="openStaffModal()">+ 追加</button>
+      </div>
+      <div class="card" style="padding:0">
+        <table class="tbl" id="staffTbl">
+          <thead><tr>
+            <th>No.</th><th>氏名</th><th>雇用形態</th><th>時給</th>
+            <th>ログインPIN</th>
+            <th>月上限時間</th><th>週上限時間</th>
+            <th>有給残</th><th>希望休残</th><th>操作</th>
+          </tr></thead>
+          <tbody id="staffBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ===== MOBILE OVERLAY ===== -->
+<div class="mob-overlay" id="mobOverlay" onclick="closeMobileDrawer()"></div>
+
+<!-- ===== MOBILE DRAWER ===== -->
+<div class="mobile-drawer" id="mobileDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-grid">
+    <button class="drawer-item" onclick="goToCurrentMonth();closeMobileDrawer()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      今月に移動
+    </button>
+    <button class="drawer-item" onclick="openWishModal();closeMobileDrawer()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      希望条件入力
+    </button>
+    <button class="drawer-item accent" onclick="autoFill();closeMobileDrawer()" id="drawerAutoFill">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      自動生成
+    </button>
+    <button class="drawer-item" onclick="window.print();closeMobileDrawer()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      印刷
+    </button>
+    <button class="drawer-item" onclick="saveToLocal(true);closeMobileDrawer()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+      保存
+    </button>
+    <button class="drawer-item" onclick="openAuthModal();closeMobileDrawer()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      権限切替
+    </button>
+    <button class="drawer-item" onclick="exportBackup();closeMobileDrawer()" id="drawerBackup">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+      バックアップ出力
+    </button>
+    <button class="drawer-item" onclick="document.getElementById('backupInput').click();closeMobileDrawer()" id="drawerRestore">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      バックアップ復元
+    </button>
+  </div>
+</div>
+
+<!-- ===== MOBILE BOTTOM NAV ===== -->
+<nav class="mobile-nav" id="mobileNav">
+  <button class="mnav-item active" id="mnav-monthly" onclick="showPage('monthly')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    シフト表
+  </button>
+  <button class="mnav-item" id="mnav-summary" onclick="showPage('summary')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    集計
+  </button>
+  <button class="mnav-item" id="mnav-staff" onclick="showPage('staff')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
+    スタッフ
+  </button>
+  <button class="mnav-item" id="mnav-menu" onclick="toggleMobileDrawer()">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+    メニュー
+  </button>
+</nav>
+
+<!-- ===== GLOBAL DROPDOWN ===== -->
+<div id="gDrop"></div>
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title">設定</span>
+      <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button class="mtab active" onclick="switchMTab(this,'stab-display')">表示</button>
+        <button class="mtab" onclick="switchMTab(this,'stab-shifts')">シフト種別</button>
+        <button class="mtab" onclick="switchMTab(this,'stab-autofill')">自動生成</button>
+        <button class="mtab" onclick="switchMTab(this,'stab-store')">店舗情報</button>
+      </div>
+      <div class="mpanel active" id="stab-display">
+        <div class="section-title">金額表示</div>
+        <label class="toggle" style="margin-bottom:10px">
+          <input type="checkbox" id="togSalary" onchange="saveSettings()">
+          <span class="toggle-sw"></span>
+          給料・時給を表示する
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="togSalarySummary" onchange="saveSettings()">
+          <span class="toggle-sw"></span>
+          月次集計に給料を表示する
+        </label>
+        <div class="section-title" style="margin-top:16px">一覧表示</div>
+        <label class="toggle" style="margin-bottom:10px">
+          <input type="checkbox" id="togWeekend" checked onchange="saveSettings()">
+          <span class="toggle-sw"></span>
+          土日を色分けする
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="togHours" checked onchange="saveSettings()">
+          <span class="toggle-sw"></span>
+          日付行に合計時間を表示
+        </label>
+      </div>
+      <div class="mpanel" id="stab-shifts">
+        <div class="section-title">シフト種別編集</div>
+        <div id="shiftEditList"></div>
+        <button class="btn btn-ghost" style="margin-top:10px;font-size:11px" onclick="addShiftType()">+ 追加</button>
+      </div>
+      <div class="mpanel" id="stab-autofill">
+        <div class="section-title">人員チェック用の時間帯（任意）</div>
+        <p style="font-size:11px;color:var(--ink3);line-height:1.55;margin-bottom:12px">
+          <b>開始〜終了</b>で監視する時間帯をいくつでも追加できます（例：開店準備 7:00〜10:00、ピーク 11:00〜14:00）。各帯に「最低何人いるか」を設定します。<b>自動生成</b>の優先順と、月次表の<b>人員チェック</b>に使います。シフトの勤務時間とこの区間が重なる人数を数えます。0＝その帯はチェックなし。日をまたぐ勤務は未対応です。
+        </p>
+        <label class="toggle" style="margin-bottom:12px">
+          <input type="checkbox" id="staffingSepWe" onchange="onStaffingSepWeChange()">
+          <span class="toggle-sw"></span>
+          土日は別の下限を使う（各時間帯の「土日最低」を使用）
+        </label>
+        <div id="staffingSlotRows" style="margin-bottom:10px"></div>
+        <button type="button" class="btn btn-ghost" style="font-size:11px" onclick="addStaffingSlotRow()">+ 時間帯を追加</button>
+      </div>
+      <div class="mpanel" id="stab-store">
+        <div class="fg2">
+          <div class="field"><label>店舗名</label><input id="storeName" placeholder="例：〇〇ストア 渋谷店"></div>
+          <div class="field"><label>デフォルト時給（円）</label><input id="defaultWage" type="number" value="1200"></div>
+        </div>
+        <div class="fg2">
+          <div class="field"><label>月デフォルト上限時間</label><input id="defMonthMax" type="number" value="160"></div>
+          <div class="field"><label>週デフォルト上限時間</label><input id="defWeekMax" type="number" value="40"></div>
+        </div>
+        <div class="fg2">
+          <div class="field"><label>新規有給デフォルト残日数</label><input id="defPaid" type="number" value="10"></div>
+          <div class="field"><label>希望休デフォルト残回数</label><input id="defWish" type="number" value="4"></div>
+        </div>
+        <div class="fg2">
+          <div class="field"><label>管理者PIN</label><input id="adminPin" type="password" value="0000"></div>
+          <div></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="closeModal('settingsModal')">閉じる</button>
+        <button class="btn btn-primary" onclick="saveSettings();closeModal('settingsModal');renderAll()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STAFF MODAL ===== -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal" style="width:560px">
+    <div class="modal-hd">
+      <span class="modal-title" id="staffModalTitle">スタッフ追加</span>
+      <button class="modal-close" onclick="closeModal('staffModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg2">
+        <div class="field"><label>氏名 *</label><input id="sfName" placeholder="田中 花子"></div>
+        <div class="field"><label>雇用形態</label>
+          <select id="sfRole"><option>正社員</option><option>パート</option><option>アルバイト</option></select>
+        </div>
+      </div>
+      <div class="section-title">勤務設定</div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:500;color:var(--ink2);display:block;margin-bottom:8px">月の勤務時間上限</label>
+        <div style="display:flex;flex-direction:column;gap:8px" id="monthMaxRadioGroup">
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:background .12s" id="mmlabel-fixed">
+            <input type="radio" name="sfMonthMaxMode" value="fixed" checked onchange="onMonthMaxModeChange()" style="accent-color:var(--accent);width:15px;height:15px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--ink)">上限を設定する</div>
+              <div style="font-size:10px;color:var(--ink3);margin-top:1px">指定した時間を超えて自動生成しない</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:background .12s" id="mmlabel-equal">
+            <input type="radio" name="sfMonthMaxMode" value="equal" onchange="onMonthMaxModeChange()" style="accent-color:var(--purple);width:15px;height:15px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--ink)">均等配分（上限なし・ペース均等）</div>
+              <div style="font-size:10px;color:var(--ink3);margin-top:1px">月全体で他スタッフと出勤日・シフト種別が均等になるよう自動調整</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:background .12s" id="mmlabel-none">
+            <input type="radio" name="sfMonthMaxMode" value="none" onchange="onMonthMaxModeChange()" style="accent-color:var(--red);width:15px;height:15px">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--ink)">上限なし（制限なしで出勤）</div>
+              <div style="font-size:10px;color:var(--ink3);margin-top:1px">人員が必要な日はすべて出勤候補になる</div>
+            </div>
+          </label>
+        </div>
+        <div id="sfMonthMaxInputWrap" style="margin-top:10px">
+          <label style="font-size:11px;font-weight:500;color:var(--ink2);display:block;margin-bottom:4px">月上限時間（h）</label>
+          <input id="sfMonthMax" type="number" value="160" style="width:120px">
+        </div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>週上限時間（h）</label><input id="sfWeekMax" type="number" value="40"></div>
+        <div class="field"><label>時給（円）</label><input id="sfWage" type="number" value="1200"></div>
+      </div>
+      <div class="section-title">休暇設定</div>
+      <div class="fg3">
+        <div class="field"><label>有給残日数</label><input id="sfPaid" type="number" value="10"></div>
+        <div class="field"><label>希望休残回数</label><input id="sfWish" type="number" value="4"></div>
+        <div class="field"><label>カラー</label>
+          <select id="sfColor">
+            <option value="0">ブルー</option><option value="1">グリーン</option>
+            <option value="2">パープル</option><option value="3">オレンジ</option>
+            <option value="4">ピンク</option><option value="5">ティール</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>スタッフナンバー</label><input id="sfNo" type="number" min="1" value="1" oninput="onStaffNoInput()"></div>
+        <div class="field"><label>ログインPIN（自動）</label><input id="sfPinAuto" type="text" value="1111" readonly></div>
+      </div>
+      <div class="fg2">
+        <div class="field"><label>ログインPIN（任意設定・閲覧）</label><input id="sfPinCustom" type="text" class="mono" placeholder="未入力なら自動PINを使用" autocomplete="off"></div>
+        <div></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="closeModal('staffModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveStaff()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WISH CONDITION MODAL ===== -->
+<div class="modal-overlay" id="wishModal">
+  <div class="modal" style="width:700px;max-width:98vw">
+    <div class="modal-hd">
+      <span class="modal-title">希望条件入力</span>
+      <button class="modal-close" onclick="closeModal('wishModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;color:var(--ink3);margin-right:6px">対象月</label>
+          <select id="wishMonthSel" onchange="renderWishGrid()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px"></select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--ink3);margin-right:6px">スタッフ</label>
+          <select id="wishStaffSel" onchange="renderWishGrid()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px"></select>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-left:auto">セルをクリックして希望シフトを設定できます。「なし」は自動生成に任せます。</div>
+      </div>
+      <div id="wishGridWrap" style="overflow-x:auto"></div>
+      <div style="margin-top:12px;padding:10px 12px;background:var(--accent-soft);border-radius:var(--r);font-size:11px;color:var(--accent)">
+        <b>💡 使い方：</b> 希望シフト・希望休・有給など確定させたい日を先に設定 → 「保存して閉じる」→ 「自動生成」で残りの日を自動で埋めます
+      </div>
+      <div class="actions">
+        <button class="btn btn-danger btn-xs" onclick="clearWishAll()" style="margin-right:auto">この月の希望をすべてクリア</button>
+        <button class="btn btn-ghost" onclick="closeModal('wishModal')">閉じる</button>
+        <button class="btn btn-primary" onclick="saveWish()">保存して閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AUTH MODAL ===== -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-hd">
+      <span class="modal-title">権限切替</span>
+      <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>利用権限</label>
+        <select id="authRoleSel" onchange="onAuthRoleChange()">
+          <option value="admin">管理者</option>
+          <option value="staff">スタッフ</option>
+        </select>
+      </div>
+      <div class="field" id="authStaffWrap" style="display:none">
+        <label>スタッフ</label>
+        <select id="authStaffSel"></select>
+      </div>
+      <div class="field">
+        <label>PINコード</label>
+        <input id="authPin" type="password" placeholder="4桁以上">
+      </div>
+      <div style="font-size:11px;color:var(--ink3);line-height:1.6;background:var(--bg);padding:10px 12px;border-radius:8px">
+        スタッフ権限では、給与などの機密情報は非表示になります。<br>
+        希望休・希望勤務は次回シフト作成向け（翌月）を入力できます。
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="closeModal('authModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="applyAuth()">切替</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STAFF PIN CHANGE (本人のみ) ===== -->
+<div class="modal-overlay" id="staffPinModal">
+  <div class="modal" style="width:440px">
+    <div class="modal-hd">
+      <span class="modal-title">ログインPINの変更</span>
+      <button class="modal-close" onclick="closeModal('staffPinModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--ink3);margin-bottom:12px;line-height:1.5">現在のPINを入力し、新しいPINを設定してください。任意PINを未設定にすると、スタッフナンバー連動の自動PINが使われます。</p>
+      <div class="field"><label>現在のPIN</label><input id="myPinCurrent" type="password" autocomplete="current-password"></div>
+      <div class="field"><label>新しいPIN</label><input id="myPinNew" type="password" placeholder="4桁以上推奨" autocomplete="new-password"></div>
+      <div class="field"><label>新しいPIN（確認）</label><input id="myPinNew2" type="password" autocomplete="new-password"></div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="closeModal('staffPinModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveStaffSelfPin()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="backupInput" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+
+<script>
+// ============================================================
+//  DATA
+// ============================================================
+const AV_COLORS=[
+  {bg:'#dde8ff',text:'#2d52c4'},{bg:'#d3f5e8',text:'#137a53'},
+  {bg:'#e8d4ff',text:'#7a2dbf'},{bg:'#ffe6cc',text:'#a35500'},
+  {bg:'#ffd4e8',text:'#b52d6d'},{bg:'#ccf0f4',text:'#0e8a8f'}
+];
+const ROLE_BADGE={正社員:'b-blue',パート:'b-amber',アルバイト:'b-green'};
+
+let settings={
+  showSalary:false,
+  showSalarySummary:false,
+  showWeekend:true,
+  showHours:true,
+  storeName:'',
+  defaultWage:1200,
+  defMonthMax:160,
+  defWeekMax:40,
+  defPaid:10,
+  defWish:4,
+  adminPin:'0000',
+  staffingSeparateWeekend:false,
+  staffingTimeSlots:[
+    {id:'ts1',label:'午前',startTime:'08:00',endTime:'12:00',minW:2,minE:2},
+    {id:'ts2',label:'昼',startTime:'12:00',endTime:'17:00',minW:2,minE:2},
+    {id:'ts3',label:'夜',startTime:'17:00',endTime:'23:00',minW:2,minE:2},
+  ],
+};
+
+let shiftTypes=[
+  {id:'early',label:'早番',startTime:'08:00',endTime:'14:00',time:'8:00〜14:00',hours:6,bg:'#e3f7f0',text:'#15896a',dot:'#15896a'},
+  {id:'day',  label:'日勤',startTime:'10:00',endTime:'17:00',time:'10:00〜17:00',hours:7,bg:'#e8efff',text:'#2d52c4',dot:'#2d52c4'},
+  {id:'late', label:'遅番',startTime:'13:00',endTime:'21:00',time:'13:00〜21:00',hours:8,bg:'#fff8e0',text:'#b87200',dot:'#b87200'},
+  {id:'full', label:'フル', startTime:'09:00',endTime:'21:00',time:'9:00〜21:00',hours:11,bg:'#f4eaff',text:'#7c3fe4',dot:'#7c3fe4'},
+  {id:'off',  label:'休み',startTime:'',endTime:'',time:'—',hours:0,bg:'#f0f0f8',text:'#9898b8',dot:'#c8c8e0'},
+  {id:'wish', label:'希望休',startTime:'',endTime:'',time:'—',hours:0,bg:'#ffeaea',text:'#d63b3b',dot:'#d63b3b'},
+  {id:'paid', label:'有給',startTime:'',endTime:'',time:'—',hours:0,bg:'#fff6e0',text:'#c47d00',dot:'#c47d00'},
+];
+let ST={}; // id->obj cache, rebuilt
+
+let staff=[
+  {id:1,staffNo:1,name:'田中 花子',role:'正社員',monthMax:160,monthMaxLocked:true, weekMax:40,wage:1500,paidLeft:12,wishLeft:4,colorIdx:0},
+  {id:2,staffNo:2,name:'山田 太郎',role:'アルバイト',monthMax:80,monthMaxLocked:true, weekMax:20,wage:1100,paidLeft:5,wishLeft:3,colorIdx:1},
+  {id:3,staffNo:3,name:'鈴木 美咲',role:'パート',monthMax:100,monthMaxLocked:false,weekMax:25,wage:1200,paidLeft:8,wishLeft:4,colorIdx:2},
+  {id:4,staffNo:4,name:'佐藤 健一',role:'アルバイト',monthMax:72,monthMaxLocked:true, weekMax:18,wage:1050,paidLeft:3,wishLeft:2,colorIdx:3},
+  {id:5,staffNo:5,name:'中村 さくら',role:'パート',monthMax:100,monthMaxLocked:false,weekMax:25,wage:1200,paidLeft:10,wishLeft:4,colorIdx:4},
+  {id:6,staffNo:6,name:'高橋 誠',role:'正社員',monthMax:160,monthMaxLocked:true, weekMax:40,wage:1600,paidLeft:15,wishLeft:4,colorIdx:5},
+];
+let nextId=10;
+let editingStaffId=null;
+let auth={role:'admin',staffId:null};
+
+// monthShifts[YYYY-MM][staffId][day1..31] = shiftTypeId
+let monthShifts={};
+
+let currentYear=new Date().getFullYear();
+let currentMonth=new Date().getMonth();
+const STORE_KEY='shiftflow_v2_local_state';
+let saveTimer=null;
+function pinFromStaffNo(no){
+  const n=Math.max(1,parseInt(no,10)||1);
+  return String(n).repeat(4);
+}
+function getStaffPin(s){
+  if(s&&s.pin&&String(s.pin).trim()!=='') return String(s.pin);
+  return pinFromStaffNo(s?.staffNo||s?.id||1);
+}
+function escHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+function openStaffPinModal(){
+  if(auth.role!=='staff'||!auth.staffId){alert('スタッフ権限でログインしてください');return;}
+  document.getElementById('myPinCurrent').value='';
+  document.getElementById('myPinNew').value='';
+  document.getElementById('myPinNew2').value='';
+  document.getElementById('staffPinModal').classList.add('open');
+}
+function saveStaffSelfPin(){
+  if(auth.role!=='staff'||!auth.staffId) return;
+  const s=staff.find(x=>x.id===auth.staffId);
+  if(!s) return;
+  const cur=document.getElementById('myPinCurrent').value||'';
+  const n1=document.getElementById('myPinNew').value.trim();
+  const n2=document.getElementById('myPinNew2').value.trim();
+  if(cur!==getStaffPin(s)){alert('現在のPINが一致しません');return;}
+  if(n1!==n2){alert('新しいPINと確認が一致しません');return;}
+  if(n1.length>0&&n1.length<4){alert('PINは4桁以上にしてください。自動PINに戻す場合は新しいPINを両方空欄にしてください。');return;}
+  s.pin=n1;
+  closeModal('staffPinModal');
+  queueAutoSave();
+  toast('PINを更新しました');
+}
+
+function gatherStaffingSlotsFromForm(){
+  const rows=document.querySelectorAll('#staffingSlotRows .staffing-slot-row');
+  if(!rows.length) return;
+  const prev=settings.staffingTimeSlots||[];
+  const arr=[];
+  rows.forEach((row,idx)=>{
+    const label=row.querySelector('.ss-label')?.value?.trim()||('時間帯'+(idx+1));
+    const startTime=row.querySelector('.ss-start')?.value||'09:00';
+    const endTime=row.querySelector('.ss-end')?.value||'18:00';
+    const minW=Math.max(0,Math.min(9,+row.querySelector('.ss-minw')?.value||0));
+    const minE=Math.max(0,Math.min(9,+row.querySelector('.ss-mine')?.value||minW));
+    arr.push({id:prev[idx]?.id||('ts_'+Date.now()+'_'+idx),label,startTime,endTime,minW,minE});
+  });
+  if(arr.length) settings.staffingTimeSlots=arr;
+}
+function renderStaffingSlotEditor(){
+  ensureStaffingSettings();
+  const wrap=document.getElementById('staffingSlotRows');
+  if(!wrap) return;
+  const list=settings.staffingTimeSlots;
+  const showE=document.getElementById('staffingSepWe')?.checked;
+  wrap.innerHTML=list.map((s,i)=>{
+    const lab=escHtml(s.label);
+    return `<div class="staffing-slot-row" data-idx="${i}" style="display:grid;grid-template-columns:minmax(72px,1fr) 86px 14px 86px 58px 58px 30px;gap:6px;align-items:end;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+      <div class="field" style="margin:0"><label style="font-size:10px">名称</label><input type="text" class="ss-label" value="${lab}" style="width:100%"></div>
+      <div class="field" style="margin:0"><label style="font-size:10px">開始</label><input type="time" class="ss-start" value="${s.startTime||'09:00'}"></div>
+      <span style="font-size:11px;color:var(--ink3);padding-bottom:8px">〜</span>
+      <div class="field" style="margin:0"><label style="font-size:10px">終了</label><input type="time" class="ss-end" value="${s.endTime||'18:00'}"></div>
+      <div class="field" style="margin:0"><label style="font-size:10px">平日最低</label><input type="number" class="ss-minw" min="0" max="9" value="${s.minW}"></div>
+      <div class="field ss-mine-wrap" style="margin:0;display:${showE?'block':'none'}"><label style="font-size:10px">土日最低</label><input type="number" class="ss-mine" min="0" max="9" value="${s.minE}"></div>
+      <button type="button" class="btn btn-danger btn-xs" onclick="removeStaffingSlotRow(${i})" style="margin-bottom:2px">×</button>
+    </div>`;
+  }).join('');
+}
+function addStaffingSlotRow(){
+  gatherStaffingSlotsFromForm();
+  settings.staffingTimeSlots.push({id:'ts_'+Date.now(),label:'新規帯',startTime:'10:00',endTime:'18:00',minW:1,minE:1});
+  ensureStaffingSettings();
+  renderStaffingSlotEditor();
+}
+function removeStaffingSlotRow(i){
+  gatherStaffingSlotsFromForm();
+  if(settings.staffingTimeSlots.length<=1){alert('最低1つの時間帯が必要です');return;}
+  settings.staffingTimeSlots.splice(i,1);
+  renderStaffingSlotEditor();
+}
+function onStaffingSepWeChange(){
+  gatherStaffingSlotsFromForm();
+  const on=document.getElementById('staffingSepWe')?.checked;
+  document.querySelectorAll('.ss-mine-wrap').forEach(el=>{el.style.display=on?'block':'none';});
+}
+
+function rebuildST(){ST={};shiftTypes.forEach(s=>ST[s.id]=s);}
+rebuildST();
+
+function mkKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`;}
+function ensureMonth(y,m){
+  const k=mkKey(y,m);
+  if(!monthShifts[k]){
+    monthShifts[k]={};
+    staff.forEach(s=>initStaffMonth(k,s.id,y,m));
+  } else {
+    staff.forEach(s=>{if(!monthShifts[k][s.id]) initStaffMonth(k,s.id,y,m);});
+  }
+  return k;
+}
+function initStaffMonth(k,sid,y,m){
+  monthShifts[k][sid]={};
+  const days=daysInMonth(y,m);
+  for(let d=1;d<=days;d++) monthShifts[k][sid][d]='off';
+}
+function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+function dayOfWeek(y,m,d){return new Date(y,m,d).getDay();}
+const WD_JP=['日','月','火','水','木','金','土'];
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function showPage(id){
+  if(auth.role==='staff'&&id==='staff') id='monthly';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const map={'monthly':0,'summary':1,'staff':2};
+  document.querySelectorAll('.nav-item')[map[id]]?.classList.add('active');
+  const titles={monthly:'月次シフト表',summary:'月次集計',staff:'スタッフ管理'};
+  document.getElementById('topTitle').textContent=titles[id]||'';
+  // mobile nav sync
+  document.querySelectorAll('.mnav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('mnav-'+id)?.classList.add('active');
+  closeMobileDrawer();
+  if(id==='monthly') renderMonthly();
+  if(id==='summary') renderSummary();
+  if(id==='staff') renderStaffTable();
+}
+function canViewSalary(){return auth.role==='admin';}
+
+// ============================================================
+//  MONTHLY SHIFT TABLE
+// ============================================================
+function changeMonth(d){
+  currentMonth+=d;
+  if(currentMonth<0){currentMonth=11;currentYear--;}
+  if(currentMonth>11){currentMonth=0;currentYear++;}
+  renderMonthly();
+}
+function goToCurrentMonth(){
+  const now=new Date();
+  currentYear=now.getFullYear();
+  currentMonth=now.getMonth();
+  renderMonthly();
+  toast('今月に移動しました');
+}
+
+function timeToMin(t){
+  if(!t||t==='') return null;
+  const p=String(t).trim().split(':');
+  const h=parseInt(p[0],10), m=parseInt(p[1]||'0',10);
+  if(Number.isNaN(h)) return null;
+  return h*60+(Number.isNaN(m)?0:m);
+}
+function shiftOverlapsTimeRange(st,en,rangeStart,rangeEnd){
+  if(!st||!en||!rangeStart||!rangeEnd) return false;
+  const a=timeToMin(st), b=timeToMin(en), c=timeToMin(rangeStart), d=timeToMin(rangeEnd);
+  if(a===null||b===null||c===null||d===null) return false;
+  if(a>=b) return false;
+  if(c>=d) return false;
+  return a<d&&b>c;
+}
+function ensureStaffingSettings(){
+  if(!settings.staffingTimeSlots||!Array.isArray(settings.staffingTimeSlots)||settings.staffingTimeSlots.length===0){
+    const w=settings.staffingMinWeekday, e=settings.staffingMinWeekend;
+    if(Array.isArray(w)&&w.length>=3){
+      settings.staffingTimeSlots=[
+        {id:'mig1',label:'午前',startTime:'08:00',endTime:'12:00',minW:+w[0]||0,minE:Array.isArray(e)?(+e[0]||0):(+w[0]||0)},
+        {id:'mig2',label:'昼',startTime:'12:00',endTime:'17:00',minW:+w[1]||0,minE:Array.isArray(e)?(+e[1]||0):(+w[1]||0)},
+        {id:'mig3',label:'夜',startTime:'17:00',endTime:'23:00',minW:+w[2]||0,minE:Array.isArray(e)?(+e[2]||0):(+w[2]||0)},
+      ];
+    }else{
+      settings.staffingTimeSlots=[
+        {id:'ts1',label:'午前',startTime:'08:00',endTime:'12:00',minW:2,minE:2},
+        {id:'ts2',label:'昼',startTime:'12:00',endTime:'17:00',minW:2,minE:2},
+        {id:'ts3',label:'夜',startTime:'17:00',endTime:'23:00',minW:2,minE:2},
+      ];
+    }
+  }
+  settings.staffingTimeSlots=settings.staffingTimeSlots.map((s,i)=>{
+    const id=s.id||('ts_'+i+'_'+Date.now());
+    const label=(s.label||'時間帯'+(i+1)).slice(0,24);
+    let st=s.startTime||'09:00', en=s.endTime||'18:00';
+    if(timeToMin(st)!==null&&timeToMin(en)!==null&&timeToMin(st)>=timeToMin(en)){
+      const t=en;en=st;st=t;
+    }
+    return{
+      id,
+      label,
+      startTime:st,
+      endTime:en,
+      minW:Math.max(0,Math.min(9,parseInt(s.minW,10)||0)),
+      minE:Math.max(0,Math.min(9,parseInt(s.minE,10)||0)),
+    };
+  });
+  if(settings.staffingTimeSlots.length===0){
+    settings.staffingTimeSlots=[{id:'ts1',label:'帯1',startTime:'09:00',endTime:'18:00',minW:1,minE:1}];
+  }
+}
+function getActiveTimeSlots(){ensureStaffingSettings();return settings.staffingTimeSlots;}
+function slotCheckShift(st,en,slot){
+  return shiftOverlapsTimeRange(st,en,slot.startTime,slot.endTime);
+}
+function getMinSlotsForDay(dow){
+  const slots=getActiveTimeSlots();
+  const isWE=dow===0||dow===6;
+  return slots.map(s=>{
+    const v=(settings.staffingSeparateWeekend&&isWE)?s.minE:s.minW;
+    return Math.max(0,Math.min(9,parseInt(v,10)||0));
+  });
+}
+function staffingCheckSubtitle(){
+  const n=getActiveTimeSlots().length;
+  return `${n}時間帯（店舗設定）`;
+}
+
+function timeToHalfH(t){
+  if(!t||t==='') return null;
+  const [h,min]=t.split(':').map(Number);
+  return h+(min>=30?0.5:0);
+}
+
+// 各日・各時間帯に何人が働いているかをカウント
+function countWorkingBySlot(staffList, dayShifts){
+  const slots=getActiveTimeSlots();
+  const counts=slots.map(()=>0);
+  staffList.forEach(s=>{
+    const sid=dayShifts[s.id]||'off';
+    const sh=ST[sid];
+    if(!sh||sh.hours===0) return;
+    const st=sh.startTime||'';
+    const en=sh.endTime||'';
+    slots.forEach((slot,i)=>{
+      if(slotCheckShift(st,en,slot)) counts[i]++;
+    });
+  });
+  return counts;
+}
+
+// チェックセルのHTML生成
+function buildCheckCell(counts,mins){
+  const slots=getActiveTimeSlots();
+  const minArr=mins||getMinSlotsForDay(1);
+  const shortSlots=slots.map((s,i)=>({label:`${s.label}（${s.startTime}〜${s.endTime}）`,count:counts[i],need:minArr[i]})).filter((_,i)=>minArr[i]>0&&counts[i]<minArr[i]);
+   const totalWorking=Math.max(...counts,0); // 少なくとも1スロットの最大人数で判断
+  // 全スロットが0なら全休扱い
+  const allZero=counts.every(c=>c===0);
+  if(allZero){
+    return `<td style="background:#fff8f8;min-width:90px;padding:4px 6px;text-align:center;vertical-align:middle">
+      <span style="font-size:10px;color:var(--ink3)">全員休</span>
+    </td>`;
+  }
+  if(shortSlots.length===0){
+    // 全時間帯が下限を満たす → OK
+    return `<td style="background:#f0fbf6;min-width:90px;padding:4px 6px;text-align:center;vertical-align:middle">
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <span style="width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:10px;font-weight:600;color:var(--green)">OK</span>
+      </div>
+    </td>`;
+  }
+  // エラー
+  const errorLines=shortSlots.map(s=>{
+    const badge=`<span style="background:#ffd0d0;color:#b52020;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px">${s.count}人</span>`;
+    return `<div style="display:flex;align-items:center;gap:3px;margin-top:2px;white-space:nowrap">
+      ${badge}<span style="font-size:9px;color:var(--ink2)">${s.label}<span style="color:var(--ink3)">（要${s.need}）</span></span>
+    </div>`;
+  }).join('');
+  return `<td style="background:#fff3f3;border-left:2px solid var(--red);min-width:110px;padding:4px 6px;vertical-align:middle">
+    <div style="display:flex;align-items:center;gap:3px;margin-bottom:1px">
+      <span style="font-size:10px;font-weight:700;color:var(--red)">⚠ 人数不足</span>
+    </div>
+    ${errorLines}
+  </td>`;
+}
+
+function renderMonthly(){
+  ensureStaffingSettings();
+  const y=currentYear,m=currentMonth;
+  const k=ensureMonth(y,m);
+  const days=daysInMonth(y,m);
+  document.getElementById('monthLabel').textContent=`${y}年${m+1}月`;
+
+  let html='<thead><tr>';
+  html+=`<th class="th-date">日付</th>`;
+  staff.forEach(s=>{
+    const col=AV_COLORS[s.colorIdx%AV_COLORS.length];
+    html+=`<th>
+      <div class="staff-head">
+        <div class="av av-sm" style="background:${col.bg};color:${col.text}">${s.name.replace(' ','').substring(0,2)}</div>
+        <div class="staff-name">${s.name}</div>
+        <span class="badge ${ROLE_BADGE[s.role]||'b-gray'} staff-role-badge">${s.role}</span>
+        ${settings.showSalary&&canViewSalary()?`<span style="font-size:9px;color:var(--ink3)">${s.wage.toLocaleString()}円/h</span>`:''}
+      </div>
+    </th>`;
+  });
+  html+=`<th style="min-width:110px;position:sticky;right:0;background:var(--bg);z-index:11">
+    <div style="font-size:11px;font-weight:700;color:var(--ink2);padding:2px 0">人員チェック</div>
+    <div style="font-size:9px;color:var(--ink3);font-weight:400;white-space:normal;line-height:1.35">下限 ${escHtml(staffingCheckSubtitle())}</div>
+  </th>`;
+  html+='</tr></thead><tbody>';
+
+  let weekNums={};
+  staff.forEach(s=>weekNums[s.id]=0);
+  const monthHours={};
+  staff.forEach(s=>monthHours[s.id]=0);
+
+  let errorDays=0;
+
+  for(let d=1;d<=days;d++){
+    const dow=dayOfWeek(y,m,d);
+    const isSat=dow===6,isSun=dow===0;
+    const wdLabel=WD_JP[dow];
+    const now=new Date();
+    const isToday=(y===now.getFullYear()&&m===now.getMonth()&&d===now.getDate());
+    if(dow===1) staff.forEach(s=>weekNums[s.id]=0);
+
+    let rowHours=0;
+    let cells='';
+    const dayShifts={};
+    staff.forEach(s=>{
+      const sid=monthShifts[k][s.id]?.[d]||'off';
+      dayShifts[s.id]=sid;
+      const sh=ST[sid]||ST['off'];
+      weekNums[s.id]+=sh.hours;
+      monthHours[s.id]+=sh.hours;
+      rowHours+=sh.hours;
+      const overWeek=weekNums[s.id]>s.weekMax;
+      // check if this day is a locked wish
+      const wk2=mkKey(y,m);
+      const isLocked=wishConditions[wk2]?.[s.id]?.[d]!==undefined;
+      const lockedSid=isLocked?wishConditions[wk2][s.id][d]:null;
+      const isWorkWish=isLocked&&ST[lockedSid]?.hours>0;
+      const isRestWish=isLocked&&ST[lockedSid]?.hours===0&&lockedSid!=='off';
+      // cell bg: amber for work wish, pink for rest wish
+      const cellBg=isWorkWish?'background:#fffbe6;'
+                  :isRestWish?'background:#fff0f5;'
+                  :'';
+      const lockMark=isLocked
+        ?`<span title="希望確定" style="position:absolute;top:1px;right:2px;font-size:8px;color:${isWorkWish?'#c47d00':'#d63b3b'}">🔒</span>`
+        :'';
+      const warnOutline=overWeek&&sh.hours>0?';outline:2px solid var(--red)':'';
+      const wishOutline=isLocked?`;box-shadow:0 0 0 2px ${isWorkWish?'#e8a800':'#e8608a'} inset`:'' ;
+      cells+=`<td class="shift-cell" style="position:relative;${cellBg}" onclick="openDrop(event,${s.id},${d},'${k}')">
+        ${lockMark}
+        <span class="shift-btn" style="background:${sh.bg};color:${sh.text}${warnOutline}${wishOutline}">${sh.label}</span>
+      </td>`;
+    });
+
+    // staffing check
+    const slotCounts=countWorkingBySlot(staff,dayShifts);
+    const dayMins=getMinSlotsForDay(dow);
+    const anyWorking=slotCounts.some(c=>c>0);
+    const hasShortage=anyWorking&&dayMins.some((min,i)=>min>0&&slotCounts[i]<min);
+    if(hasShortage) errorDays++;
+    const checkCell=buildCheckCell(slotCounts,dayMins);
+
+    const dateCls=isSat?'is-sat':isSun?'is-sun':'';
+    const hrsLabel=settings.showHours&&rowHours>0?`<span style="font-size:9px;color:var(--ink3);margin-left:4px">${rowHours}h</span>`:'';
+    html+=`<tr class="${isToday?'is-today':''}">
+      <td class="td-date ${dateCls}">
+        <span class="date-main">${m+1}/${d}</span>
+        <span class="date-wd">${wdLabel}</span>
+        ${hrsLabel}
+      </td>
+      ${cells}
+      ${checkCell}
+    </tr>`;
+  }
+
+  // ── 月計フッター行（スタッフ別） ──
+  html+=`<tr class="td-summary">
+    <td class="td-date" style="font-weight:700;font-size:11px;color:var(--ink2);white-space:nowrap">月計</td>`;
+  let overAlertNames=[];
+  staff.forEach(s=>{
+    const h=monthHours[s.id];
+    const over=h>s.monthMax;
+    if(over) overAlertNames.push(s.name);
+    const pct=Math.min(100,Math.round(h/s.monthMax*100));
+    const barColor=over?'var(--red)':pct>=80?'var(--green)':'var(--accent)';
+    const wage=settings.showSalary
+      ?`<div style="font-size:10px;color:var(--amber);margin-top:1px">${(h*s.wage).toLocaleString()}円</div>`:'';
+    html+=`<td style="padding:6px 6px;background:#f5f6ff">
+      <div style="display:flex;align-items:baseline;gap:3px;justify-content:center">
+        <span style="font-size:14px;font-weight:700;font-family:'DM Mono',monospace;color:${over?'var(--red)':'var(--accent)'}">${h}</span>
+        <span style="font-size:9px;color:var(--ink3)">h</span>
+      </div>
+      <div style="margin:3px auto 0;width:54px;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px"></div>
+      </div>
+      <div style="font-size:9px;color:${over?'var(--red)':'var(--ink3)'};text-align:center;margin-top:2px">上限${s.monthMax}h</div>
+      ${wage}
+    </td>`;
+  });
+  const errSummary=errorDays>0
+    ?`<td style="background:#fff0f0;padding:6px 8px;border-left:2px solid var(--red)">
+        <div style="font-size:10px;font-weight:700;color:var(--red)">⚠ ${errorDays}日 要確認</div>
+        <div style="font-size:9px;color:var(--ink3);margin-top:2px">人員不足の日があります</div>
+      </td>`
+    :`<td style="background:#f0fbf6;padding:6px 8px">
+        <div style="font-size:10px;font-weight:700;color:var(--green)">✓ 全日OK</div>
+        <div style="font-size:9px;color:var(--ink3);margin-top:2px">人員充足</div>
+      </td>`;
+  html+=`${errSummary}</tr>`;
+
+  // ── シフト種別 全スタッフ合計行 ──
+  // 月全体でシフトIDごとの件数を集計（全スタッフ合計）
+  const totalByShift={};
+  shiftTypes.forEach(sh=>totalByShift[sh.id]=0);
+  for(let d=1;d<=days;d++){
+    staff.forEach(s=>{
+      const sid=monthShifts[k][s.id]?.[d]||'off';
+      if(totalByShift[sid]!==undefined) totalByShift[sid]++;
+    });
+  }
+  // 勤務系（hours>0）と休暇系を分けて2行で表示
+  const workShifts=shiftTypes.filter(sh=>sh.hours>0);
+  const leaveShifts=shiftTypes.filter(sh=>sh.hours===0);
+
+  // 行1: 勤務種別合計
+  html+=`<tr style="background:#eef2ff">
+    <td class="td-date" style="font-size:10px;font-weight:700;color:var(--accent);padding:5px 10px;white-space:nowrap">
+      勤務合計<br><span style="font-weight:400;color:var(--ink3)">（全員）</span>
+    </td>`;
+  staff.forEach(s=>{
+    // per-staff per-shifttype count
+    const perStaff={};
+    shiftTypes.forEach(sh=>perStaff[sh.id]=0);
+    for(let d=1;d<=days;d++){
+      const sid=monthShifts[k][s.id]?.[d]||'off';
+      if(perStaff[sid]!==undefined) perStaff[sid]++;
+    }
+    const parts=workShifts.map(sh=>`<span style="display:inline-flex;align-items:center;gap:2px;margin:1px 2px">
+      <span style="width:6px;height:6px;border-radius:50%;background:${sh.dot};flex-shrink:0"></span>
+      <span style="font-size:10px;color:${sh.text};font-weight:600">${sh.label}:${perStaff[sh.id]}</span>
+    </span>`).join('');
+    html+=`<td style="padding:4px 5px;background:#eef2ff;vertical-align:top"><div style="display:flex;flex-wrap:wrap;justify-content:center">${parts}</div></td>`;
+  });
+  // check col: 全体合計
+  const totalWorkParts=workShifts.map(sh=>`<span style="display:inline-flex;align-items:center;gap:2px;margin:1px 3px">
+    <span style="width:6px;height:6px;border-radius:50%;background:${sh.dot};flex-shrink:0"></span>
+    <span style="font-size:10px;color:${sh.text};font-weight:700">${sh.label}:${totalByShift[sh.id]}</span>
+  </span>`).join('');
+  html+=`<td style="background:#e8edff;padding:5px 8px;position:sticky;right:0">
+    <div style="font-size:9px;font-weight:700;color:var(--accent);margin-bottom:2px">全体合計</div>
+    <div style="display:flex;flex-wrap:wrap">${totalWorkParts}</div>
+  </td></tr>`;
+
+  // 行2: 休暇種別合計
+  html+=`<tr style="background:#fdf5ff">
+    <td class="td-date" style="font-size:10px;font-weight:700;color:var(--purple);padding:5px 10px;white-space:nowrap">
+      休暇合計<br><span style="font-weight:400;color:var(--ink3)">（全員）</span>
+    </td>`;
+  staff.forEach(s=>{
+    const perStaff={};
+    shiftTypes.forEach(sh=>perStaff[sh.id]=0);
+    for(let d=1;d<=days;d++){
+      const sid=monthShifts[k][s.id]?.[d]||'off';
+      if(perStaff[sid]!==undefined) perStaff[sid]++;
+    }
+    const parts=leaveShifts.map(sh=>`<span style="display:inline-flex;align-items:center;gap:2px;margin:1px 2px">
+      <span style="width:6px;height:6px;border-radius:50%;background:${sh.dot};flex-shrink:0"></span>
+      <span style="font-size:10px;color:${sh.text};font-weight:600">${sh.label}:${perStaff[sh.id]}</span>
+    </span>`).join('');
+    html+=`<td style="padding:4px 5px;background:#fdf5ff;vertical-align:top"><div style="display:flex;flex-wrap:wrap;justify-content:center">${parts}</div></td>`;
+  });
+  const totalLeaveParts=leaveShifts.map(sh=>`<span style="display:inline-flex;align-items:center;gap:2px;margin:1px 3px">
+    <span style="width:6px;height:6px;border-radius:50%;background:${sh.dot};flex-shrink:0"></span>
+    <span style="font-size:10px;color:${sh.text};font-weight:700">${sh.label}:${totalByShift[sh.id]}</span>
+  </span>`).join('');
+  html+=`<td style="background:#f5e8ff;padding:5px 8px;position:sticky;right:0">
+    <div style="font-size:9px;font-weight:700;color:var(--purple);margin-bottom:2px">全体合計</div>
+    <div style="display:flex;flex-wrap:wrap">${totalLeaveParts}</div>
+  </td></tr>`;
+
+  html+=`</tbody>`;
+
+  document.getElementById('shiftTable').innerHTML=html;
+
+  const alBadge=document.getElementById('overAlerts');
+  let badges='';
+  if(overAlertNames.length) badges+=`<span class="badge b-red" style="margin-right:6px">⚠ 上限超過: ${overAlertNames.join('、')}</span>`;
+  if(errorDays>0) badges+=`<span class="badge b-red">⚠ 人員不足: ${errorDays}日</span>`;
+  alBadge.innerHTML=badges;
+}
+
+// ============================================================
+//  DROPDOWN
+// ============================================================
+let dropState={};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#gDrop')&&!e.target.closest('.shift-cell')) document.getElementById('gDrop').style.display='none';
+});
+function openDrop(e,staffId,day,mkey){
+  e.stopPropagation();
+  dropState={staffId,day,mkey};
+  const dd=document.getElementById('gDrop');
+  const rect=e.target.getBoundingClientRect();
+  if(window.innerWidth<=768){
+    dd.style.left='8px';dd.style.right='8px';dd.style.width='calc(100vw - 16px)';
+    dd.style.bottom='64px';dd.style.top='auto';
+  } else {
+    dd.style.left=Math.min(rect.left,window.innerWidth-210)+'px';
+    dd.style.top=(rect.bottom+4)+'px';
+    dd.style.right='';dd.style.width='';dd.style.bottom='';
+  }
+  dd.style.display='block';
+  let h='';
+  shiftTypes.forEach((sh,i)=>{
+    if(i===4) h+=`<div class="drop-sep"></div>`;
+    h+=`<div class="drop-item" onclick="applyShift('${sh.id}')">
+      <span class="drop-dot" style="background:${sh.dot}"></span>
+      <span class="drop-label" style="color:${sh.text}">${sh.label}</span>
+      <span class="drop-time">${sh.time}</span>
+    </div>`;
+  });
+  dd.innerHTML=h;
+}
+function applyShift(sid){
+  const {staffId,day,mkey}=dropState;
+  if(monthShifts[mkey]&&monthShifts[mkey][staffId]) monthShifts[mkey][staffId][day]=sid;
+  document.getElementById('gDrop').style.display='none';
+  queueAutoSave();
+  renderMonthly();
+}
+
+// ============================================================
+//  WISH CONDITIONS
+//  wishConditions[mkKey(y,m)][staffId][day] = shiftTypeId | undefined
+// ============================================================
+let wishConditions={};
+
+function ensureWish(k){
+  if(!wishConditions[k]) wishConditions[k]={};
+  staff.forEach(s=>{ if(!wishConditions[k][s.id]) wishConditions[k][s.id]={}; });
+  return wishConditions[k];
+}
+
+function openWishModal(){
+  if(auth.role==='staff'&&!auth.staffId){alert('先にスタッフ権限でログインしてください');return;}
+  initWishMonthSel();
+  // populate staff selector
+  const sel=document.getElementById('wishStaffSel');
+  if(auth.role==='staff'){
+    const me=staff.find(s=>s.id===auth.staffId);
+    sel.innerHTML=me?`<option value="${me.id}">${me.name}</option>`:'';
+    sel.disabled=true;
+    document.getElementById('wishMonthSel').value=getNextMonthValue();
+  }else{
+    sel.innerHTML=staff.map(s=>`<option value="${s.id}">No.${s.staffNo||s.id} ${s.name}</option>`).join('');
+    sel.disabled=false;
+  }
+  renderWishGrid();
+  document.getElementById('wishModal').classList.add('open');
+}
+function initWishMonthSel(){
+  const sel=document.getElementById('wishMonthSel');
+  const now=new Date(currentYear,currentMonth,1);
+  let html='';
+  for(let i=0;i<6;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    const v=`${d.getFullYear()}-${d.getMonth()}`;
+    const lbl=`${d.getFullYear()}年${d.getMonth()+1}月`;
+    html+=`<option value="${v}" ${i===0?'selected':''}>${lbl}</option>`;
+  }
+  sel.innerHTML=html;
+}
+function getNextMonthValue(){
+  const d=new Date(currentYear,currentMonth+1,1);
+  return `${d.getFullYear()}-${d.getMonth()}`;
+}
+
+function renderWishGrid(){
+  const sid=parseInt(document.getElementById('wishStaffSel').value);
+  const s=staff.find(x=>x.id===sid);
+  if(!s) return;
+  const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
+  const k=mkKey(y,m);
+  ensureWish(k);
+  const days=daysInMonth(y,m);
+  const wishes=wishConditions[k][sid]||{};
+
+  let html=`<table style="border-collapse:collapse;min-width:max-content;width:100%">
+    <thead><tr>
+      <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:left;white-space:nowrap;min-width:70px">日付</th>
+      <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:center">希望シフト</th>
+      <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:center;min-width:70px">ロック</th>
+    </tr></thead><tbody>`;
+
+  for(let d=1;d<=days;d++){
+    const dow=dayOfWeek(y,m,d);
+    const isSat=dow===6,isSun=dow===0;
+    const wdLabel=WD_JP[dow];
+    const dateCls=isSat?'color:var(--accent)':isSun?'color:var(--red)':'';
+    const cur=wishes[d]||'none';
+    const locked=wishes[d]!==undefined&&wishes[d]!==null;
+
+    const opts=`<option value="none"${cur==='none'?' selected':''}>— 指定なし（自動）</option>`
+      +shiftTypes.map(sh=>`<option value="${sh.id}"${cur===sh.id?' selected':''}>${sh.label}${sh.time!=='—'?' ('+sh.time+')':''}</option>`).join('');
+
+    html+=`<tr style="${locked?'background:#fffbe8':''}">
+      <td style="border:1px solid var(--border);padding:5px 10px;white-space:nowrap">
+        <span style="font-size:12px;font-weight:700;${dateCls}">${m+1}/${d}（${wdLabel}）</span>
+      </td>
+      <td style="border:1px solid var(--border);padding:4px 8px;text-align:center">
+        <select data-day="${d}" onchange="onWishChange(this,${sid})"
+          style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:100%;background:${locked?'#fffbe8':'var(--card)'}">
+          ${opts}
+        </select>
+      </td>
+      <td style="border:1px solid var(--border);padding:4px 8px;text-align:center">
+        ${locked
+          ?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-soft);padding:2px 8px;border-radius:10px">🔒 確定</span>`
+          :`<span style="font-size:10px;color:var(--ink3)">自動</span>`}
+      </td>
+    </tr>`;
+  }
+  html+=`</tbody></table>`;
+  document.getElementById('wishGridWrap').innerHTML=html;
+}
+
+function onWishChange(sel,staffId){
+  const day=parseInt(sel.dataset.day);
+  const val=sel.value;
+  const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
+  const k=mkKey(y,m);
+  ensureWish(k);
+  if(val==='none'){
+    delete wishConditions[k][staffId][day];
+  } else {
+    wishConditions[k][staffId][day]=val;
+  }
+  // re-render grid to update lock badges
+  renderWishGrid();
+  queueAutoSave();
+}
+
+function saveWish(){
+  // already saved reactively; just close
+  closeModal('wishModal');
+  queueAutoSave();
+  toast('希望条件を保存しました');
+}
+
+function clearWishAll(){
+  const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
+  const k=mkKey(y,m);
+  if(auth.role==='staff'){
+    if(!confirm('この月のあなたの希望条件をクリアしますか？')) return;
+    ensureWish(k);
+    wishConditions[k][auth.staffId]={};
+  }else{
+    if(!confirm('この月の全スタッフの希望条件をクリアしますか？')) return;
+    wishConditions[k]={};
+  }
+  renderWishGrid();
+  queueAutoSave();
+  toast('希望条件をクリアしました');
+}
+
+// ============================================================
+//  AUTO FILL — pace-aware, no second-half blackout
+// ============================================================
+function autoFill(){
+  const y=currentYear,m=currentMonth;
+  const k=ensureMonth(y,m);
+  const days=daysInMonth(y,m);
+  const wk=mkKey(y,m);
+  ensureWish(wk);
+  const wishData=wishConditions[wk]||{};
+
+  const workTypeIds=shiftTypes.filter(sh=>sh.hours>0).map(sh=>sh.id);
+  const avgShiftH=workTypeIds.reduce((a,id)=>a+(ST[id]?.hours||0),0)/Math.max(workTypeIds.length,1);
+  const weekdays=[...Array(days)].filter((_,i)=>{
+    const dow=dayOfWeek(y,m,i+1);return dow!==0&&dow!==6;
+  }).length;
+  // 均等配分の目標時間：平日の約80%出勤
+  const baseTarget=Math.round(weekdays*avgShiftH*0.8);
+
+  // 実効上限：noMonthMax=true か monthMaxLocked=false なら上限なし(Infinity)
+  function effectiveMax(s){
+    if(s.noMonthMax===true) return Infinity;
+    if(s.monthMaxLocked===false) return Infinity; // 均等モードは上限で切らない
+    return s.monthMax||160;
+  }
+  // 均等配分スタッフの「今日出勤すべき」判定：残り日数に対してペース管理
+  function shouldWorkToday(s,d,accH){
+    const emax=effectiveMax(s);
+    if(emax!==Infinity&&accH>=emax) return false; // 上限到達は絶対出勤不可
+    const tgt=emax===Infinity?baseTarget:emax;
+    const remainDays=days-d+1;
+    const needed=Math.max(0,tgt-accH);
+    if(needed<=0){
+      // 目標達成済み：残り日を少し埋める（30%）
+      return Math.random()<0.3;
+    }
+    // 必要ペース：残り日数で均等に割ったとき、今日出勤しないと足りなくなるか
+    const daysNeeded=Math.ceil(needed/avgShiftH);
+    // 余裕がある（残り日数 > 必要日数×1.3）なら休み寄り、ギリギリなら必出
+    const ratio=remainDays/Math.max(daysNeeded,1);
+    if(ratio>2.5) return Math.random()<0.55;
+    if(ratio>1.5) return Math.random()<0.75;
+    return true; // 余裕なし→必ず出勤
+  }
+
+  // ── Step 1: 希望条件を適用、他はリセット ──
+  const accHours={};
+  const shiftCount={};
+  staff.forEach(s=>{
+    accHours[s.id]=0;
+    shiftCount[s.id]={};
+    workTypeIds.forEach(id=>shiftCount[s.id][id]=0);
+  });
+  for(let d2=1;d2<=days;d2++){
+    staff.forEach(s=>{
+      const locked=wishData[s.id]?.[d2];
+      if(locked!==undefined){
+        monthShifts[k][s.id][d2]=locked;
+        const h=ST[locked]?.hours||0;
+        accHours[s.id]+=h;
+        if(h>0&&shiftCount[s.id][locked]!==undefined) shiftCount[s.id][locked]++;
+      } else {
+        monthShifts[k][s.id][d2]='off';
+      }
+    });
+  }
+
+  function slotsOf(sid){
+    const sh=ST[sid]; if(!sh||sh.hours===0) return [];
+    const st=sh.startTime||''; const en=sh.endTime||'';
+    const slots=getActiveTimeSlots();
+    return slots.map((slot,i)=>slotCheckShift(st,en,slot)?i:-1).filter(i=>i>=0);
+  }
+  function slotCountsForDay(d2){
+    const slots=getActiveTimeSlots();
+    const counts=slots.map(()=>0);
+    staff.forEach(s=>{ slotsOf(monthShifts[k][s.id][d2]).forEach(i=>counts[i]++); });
+    return counts;
+  }
+
+  // ── Step 2: 日付ごとに割り当て ──
+  ensureStaffingSettings();
+  for(let d=1;d<=days;d++){
+    const freeStaff=staff.filter(s=>wishData[s.id]?.[d]===undefined);
+    if(!freeStaff.length) continue;
+    const dow=dayOfWeek(y,m,d);
+    const isWeekend=dow===0||dow===6;
+    const dayMins=getMinSlotsForDay(dow);
+    const shuffled=[...freeStaff].sort(()=>Math.random()-0.5);
+
+    // Pass A: 時間帯ごとに下限人数を確保（上限超えても緊急充填）
+    let passes=0;
+    while(passes++<48){
+      const counts=slotCountsForDay(d);
+      const needSlot=counts.findIndex((c,i)=>c<dayMins[i]);
+      if(needSlot===-1) break;
+
+      // 未出勤の空きスタッフから候補（上限は+12hまで許容）
+      const eligible=shuffled.filter(s=>{
+        if(monthShifts[k][s.id][d]!=='off') return false;
+        const emax=effectiveMax(s);
+        return emax===Infinity||accHours[s.id]<emax+12;
+      });
+      if(!eligible.length) break;
+
+      let bestStaff=null,bestShift=null,bestScore=-Infinity;
+      for(const s of eligible){
+        for(const sid of workTypeIds){
+          const sh=ST[sid]; if(!sh) continue;
+          const covered=slotsOf(sid);
+          if(!covered.includes(needSlot)) continue;
+          const coverScore=covered.filter(i=>counts[i]<dayMins[i]).length;
+          const eqBonus=s.monthMaxLocked===false
+            ?(workTypeIds.length*10-(shiftCount[s.id][sid]||0)*10):0;
+          const score=coverScore*100+eqBonus;
+          if(score>bestScore){bestScore=score;bestStaff=s;bestShift=sid;}
+        }
+      }
+      if(!bestStaff) break;
+      monthShifts[k][bestStaff.id][d]=bestShift;
+      accHours[bestStaff.id]+=ST[bestShift].hours;
+      if(shiftCount[bestStaff.id][bestShift]!==undefined) shiftCount[bestStaff.id][bestShift]++;
+    }
+
+    // Pass B: 残りスタッフをペース判定で埋める
+    for(const s of shuffled){
+      if(monthShifts[k][s.id][d]!=='off') continue;
+      const emax=effectiveMax(s);
+      if(emax!==Infinity&&accHours[s.id]>=emax) continue; // 厳格上限到達
+      if(!shouldWorkToday(s,d,accHours[s.id])) continue;
+      if(isWeekend&&s.role==='パート'&&Math.random()<0.5) continue;
+      if(isWeekend&&s.role==='アルバイト'&&Math.random()<0.3) continue;
+
+      const rem=emax===Infinity?9999:emax-accHours[s.id];
+      let opts=workTypeIds.filter(id=>(ST[id]?.hours||0)>0&&(ST[id]?.hours||0)<=rem+4);
+      if(!opts.length) opts=[...workTypeIds]; // 上限超でも入れる
+      if(!opts.length) continue;
+
+      let chosen;
+      if(s.monthMaxLocked===false){
+        opts.sort((a,b)=>(shiftCount[s.id][a]||0)-(shiftCount[s.id][b]||0));
+        const minC=shiftCount[s.id][opts[0]]||0;
+        const minOpts=opts.filter(id=>(shiftCount[s.id][id]||0)<=minC+1);
+        chosen=minOpts[Math.floor(Math.random()*minOpts.length)];
+      } else {
+        chosen=opts[Math.floor(Math.random()*opts.length)];
+      }
+      monthShifts[k][s.id][d]=chosen;
+      accHours[s.id]+=ST[chosen].hours;
+      if(shiftCount[s.id][chosen]!==undefined) shiftCount[s.id][chosen]++;
+    }
+
+    // Pass C: 最終緊急補填（上限無視）
+    const finalCounts=slotCountsForDay(d);
+    getActiveTimeSlots().forEach((_,slotIdx)=>{
+      if(finalCounts[slotIdx]>=dayMins[slotIdx]) return;
+      const emergency=shuffled.find(es=>{
+        if(monthShifts[k][es.id][d]!=='off') return false;
+        return workTypeIds.some(id=>slotsOf(id).includes(slotIdx));
+      });
+      if(emergency){
+        const opts=workTypeIds.filter(id=>slotsOf(id).includes(slotIdx));
+        if(opts.length){
+          const chosen=opts[Math.floor(Math.random()*opts.length)];
+          monthShifts[k][emergency.id][d]=chosen;
+          accHours[emergency.id]+=ST[chosen].hours;
+          if(shiftCount[emergency.id][chosen]!==undefined) shiftCount[emergency.id][chosen]++;
+        }
+      }
+    });
+  }
+
+  renderMonthly();
+  queueAutoSave();
+  const eqNames=staff.filter(s=>s.monthMaxLocked===false).map(s=>s.name).join('、');
+  toast(eqNames
+    ?`自動生成完了（均等配分: ${eqNames}）`
+    :'希望条件を反映してシフトを自動生成しました');
+}
+
+// ============================================================
+//  SUMMARY
+// ============================================================
+function initSumMonthSel(){
+  const sel=document.getElementById('sumMonthSel');
+  const now=new Date();
+  let o='';
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const v=`${d.getFullYear()}-${d.getMonth()}`;
+    const l=`${d.getFullYear()}年${d.getMonth()+1}月`;
+    o+=`<option value="${v}"${i===0?' selected':''}>${l}</option>`;
+  }
+  sel.innerHTML=o;
+}
+function renderSummary(){
+  const val=document.getElementById('sumMonthSel').value;
+  const [y,mo]=val.split('-').map(Number);
+  const k=mkKey(y,mo);
+  ensureMonth(y,mo);
+  const days=daysInMonth(y,mo);
+  const result={};
+  const viewStaff=auth.role==='staff'?staff.filter(s=>s.id===auth.staffId):staff;
+  viewStaff.forEach(s=>{
+    result[s.id]={hours:0,days:0,paidUsed:0,wishUsed:0,salary:0};
+  });
+  for(let d=1;d<=days;d++){
+    viewStaff.forEach(s=>{
+      const sid=monthShifts[k]?.[s.id]?.[d]||'off';
+      const sh=ST[sid]||ST['off'];
+      result[s.id].hours+=sh.hours;
+      if(sh.hours>0) result[s.id].days++;
+      if(sid==='paid') result[s.id].paidUsed++;
+      if(sid==='wish') result[s.id].wishUsed++;
+    });
+  }
+  viewStaff.forEach(s=>{result[s.id].salary=result[s.id].hours*s.wage;});
+
+  const totalH=viewStaff.reduce((a,s)=>a+result[s.id].hours,0);
+  const totalD=viewStaff.reduce((a,s)=>a+result[s.id].days,0);
+  const totalSal=viewStaff.reduce((a,s)=>a+result[s.id].salary,0);
+  const totalPaid=viewStaff.reduce((a,s)=>a+result[s.id].paidUsed,0);
+
+  let stats=`
+    <div class="stat-card"><div class="stat-n" style="color:var(--accent)">${totalH}<span style="font-size:13px">h</span></div><div class="stat-l">総勤務時間</div></div>
+    <div class="stat-card"><div class="stat-n">${totalD}</div><div class="stat-l">延べ出勤日数</div></div>
+    <div class="stat-card"><div class="stat-n" style="color:var(--amber)">${totalPaid}</div><div class="stat-l">有給取得合計</div></div>`;
+  if(settings.showSalarySummary&&canViewSalary()){
+    stats+=`<div class="stat-card"><div class="stat-n" style="color:var(--green)">${totalSal.toLocaleString()}<span style="font-size:12px">円</span></div><div class="stat-l">人件費合計</div></div>`;
+  } else {
+    stats+=`<div class="stat-card"><div class="stat-n mono" style="color:var(--ink3)">****</div><div class="stat-l">人件費（非表示）</div></div>`;
+  }
+  document.getElementById('sumStats').innerHTML=stats;
+
+  // table
+  let th=`<thead><tr>
+    <th>スタッフ</th><th>雇用形態</th>
+    <th>合計勤務時間</th><th>出勤日数</th>
+    <th>希望休使用</th><th>有給使用</th><th>有給残</th>
+    ${settings.showSalarySummary&&canViewSalary()?'<th>給料（概算）</th>':''}
+    <th>達成率</th>
+  </tr></thead>`;
+  let tb='<tbody>';
+  viewStaff.forEach(s=>{
+    const r=result[s.id];
+    const col=AV_COLORS[s.colorIdx%AV_COLORS.length];
+    const pct=Math.min(100,Math.round(r.hours/s.monthMax*100));
+    const pclr=pct>=100?'var(--green)':pct>=70?'var(--accent)':'var(--amber)';
+    const salCell=settings.showSalarySummary&&canViewSalary()
+      ?`<td><span class="mono">${r.salary.toLocaleString()}</span><span style="color:var(--ink3);font-size:10px">円</span></td>`
+      :'';
+    tb+=`<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="av av-sm" style="background:${col.bg};color:${col.text}">${s.name.replace(' ','').substring(0,2)}</div>
+        <span style="font-weight:500">${s.name}</span>
+      </div></td>
+      <td><span class="badge ${ROLE_BADGE[s.role]||'b-gray'}">${s.role}</span></td>
+      <td><span class="mono" style="color:var(--accent);font-size:14px">${r.hours}</span><span style="color:var(--ink3);font-size:10px">h / 上限${s.monthMax}h</span></td>
+      <td><span class="mono">${r.days}</span><span style="color:var(--ink3);font-size:10px">日</span></td>
+      <td><span class="mono" style="color:${r.wishUsed>0?'var(--red)':'var(--ink3)'}">${r.wishUsed}</span><span style="color:var(--ink3);font-size:10px"> / ${s.wishLeft+r.wishUsed}回</span></td>
+      <td><span class="mono" style="color:${r.paidUsed>0?'var(--amber)':'var(--ink3)'}">${r.paidUsed}</span><span style="color:var(--ink3);font-size:10px">日</span></td>
+      <td><span class="mono" style="color:${s.paidLeft<=2?'var(--red)':'var(--ink)'};font-weight:${s.paidLeft<=2?700:400}">${s.paidLeft}</span><span style="color:var(--ink3);font-size:10px">日</span></td>
+      ${salCell}
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="pbar" style="flex:1"><div class="pbar-fill" style="width:${pct}%;background:${pclr}"></div></div>
+          <span class="mono" style="font-size:11px;min-width:30px">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  });
+  tb+='</tbody>';
+  document.getElementById('sumTable').innerHTML=th+tb;
+}
+
+function exportCSV(){
+  const val=document.getElementById('sumMonthSel').value;
+  const [y,mo]=val.split('-').map(Number);
+  const k=mkKey(y,mo);
+  ensureMonth(y,mo);
+  const days=daysInMonth(y,mo);
+  const result={};
+  staff.forEach(s=>{result[s.id]={hours:0,days:0,paidUsed:0,wishUsed:0};});
+  for(let d=1;d<=days;d++) staff.forEach(s=>{
+    const sid=monthShifts[k]?.[s.id]?.[d]||'off';
+    const sh=ST[sid]||ST['off'];
+    result[s.id].hours+=sh.hours;
+    if(sh.hours>0) result[s.id].days++;
+    if(sid==='paid') result[s.id].paidUsed++;
+    if(sid==='wish') result[s.id].wishUsed++;
+  });
+  let csv='\uFEFF氏名,雇用形態,合計勤務時間(h),出勤日数,希望休使用,有給使用,有給残,';
+  if(settings.showSalarySummary) csv+='給料概算(円),';
+  csv+='達成率(%)\n';
+  staff.forEach(s=>{
+    const r=result[s.id];
+    const pct=Math.min(100,Math.round(r.hours/s.monthMax*100));
+    const sal=settings.showSalarySummary?`${r.hours*s.wage},`:'';
+    csv+=`${s.name},${s.role},${r.hours},${r.days},${r.wishUsed},${r.paidUsed},${s.paidLeft},${sal}${pct}\n`;
+  });
+  const b=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download=`シフト集計_${y}年${mo+1}月.csv`;
+  a.click();
+}
+
+// ============================================================
+//  STAFF TABLE & MODAL
+// ============================================================
+function renderStaffTable(){
+  document.getElementById('staffCnt').textContent=staff.length;
+  const body=document.getElementById('staffBody');
+  body.innerHTML=staff.map(s=>{
+    const col=AV_COLORS[s.colorIdx%AV_COLORS.length];
+    return `<tr>
+      <td><span class="mono">#${s.staffNo||s.id}</span></td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="av av-md" style="background:${col.bg};color:${col.text}">${s.name.replace(' ','').substring(0,2)}</div>
+        <span style="font-weight:500">${s.name}</span>
+      </div></td>
+      <td><span class="badge ${ROLE_BADGE[s.role]||'b-gray'}">${s.role}</span></td>
+      <td>${settings.showSalary&&canViewSalary()?`<span class="mono">${s.wage.toLocaleString()}円/h</span>`:`<span class="mono blurred">****</span>`}</td>
+      <td><span class="mono" title="実際にログインに使われるPIN">${escHtml(getStaffPin(s))}</span></td>
+      <td>${s.noMonthMax===true
+        ?'<span class="badge b-red" style="font-size:9px">上限なし</span>'
+        :s.monthMaxLocked===false
+          ?`<span class="mono">${s.monthMax}h</span><span class="badge b-purple" style="margin-left:4px;font-size:9px">均等</span>`
+          :`<span class="mono">${s.monthMax}h</span>`
+      }</td>
+      <td><span class="mono">${s.weekMax}h</span></td>
+      <td><span class="mono" style="color:${s.paidLeft<=2?'var(--red)':'var(--ink)'}">${s.paidLeft}日</span></td>
+      <td><span class="mono" style="color:${s.wishLeft===0?'var(--red)':'var(--ink)'}">${s.wishLeft}回</span></td>
+      <td>
+        <button class="btn btn-ghost btn-xs" onclick="openStaffModal(${s.id})" style="margin-right:4px">編集</button>
+        <button class="btn btn-danger btn-xs" onclick="delStaff(${s.id})">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ラジオ選択時のUI切替
+function onMonthMaxModeChange(){
+  const mode=document.querySelector('input[name="sfMonthMaxMode"]:checked')?.value||'fixed';
+  document.getElementById('sfMonthMaxInputWrap').style.display=mode==='fixed'?'block':'none';
+  // ラジオの枠色をアクティブ強調
+  ['fixed','equal','none'].forEach(v=>{
+    const lbl=document.getElementById('mmlabel-'+v);
+    if(!lbl) return;
+    lbl.style.background=mode===v?'var(--accent-soft)':'';
+    lbl.style.borderColor=mode===v
+      ?(v==='none'?'var(--red)':v==='equal'?'var(--purple)':'var(--accent)')
+      :'var(--border)';
+  });
+}
+
+function openStaffModal(id){
+  if(auth.role!=='admin'){alert('管理者権限のみ実行できます');return;}
+  editingStaffId=id||null;
+  document.getElementById('staffModalTitle').textContent=id?'スタッフ編集':'スタッフ追加';
+  if(id){
+    const s=staff.find(x=>x.id===id);
+    document.getElementById('sfName').value=s.name;
+    document.getElementById('sfRole').value=s.role;
+    document.getElementById('sfMonthMax').value=s.monthMax||160;
+    document.getElementById('sfWeekMax').value=s.weekMax;
+    document.getElementById('sfWage').value=s.wage;
+    document.getElementById('sfPaid').value=s.paidLeft;
+    document.getElementById('sfWish').value=s.wishLeft;
+    document.getElementById('sfColor').value=s.colorIdx;
+    document.getElementById('sfNo').value=s.staffNo||s.id;
+    document.getElementById('sfPinAuto').value=pinFromStaffNo(s.staffNo||s.id);
+    document.getElementById('sfPinCustom').value=s.pin||'';
+    // モードをラジオに反映
+    const mode=s.noMonthMax===true?'none':s.monthMaxLocked===false?'equal':'fixed';
+    document.querySelector(`input[name="sfMonthMaxMode"][value="${mode}"]`).checked=true;
+  } else {
+    document.getElementById('sfName').value='';
+    document.getElementById('sfRole').value='正社員';
+    document.getElementById('sfMonthMax').value=settings.defMonthMax;
+    document.getElementById('sfWeekMax').value=settings.defWeekMax;
+    document.getElementById('sfWage').value=settings.defaultWage;
+    document.getElementById('sfPaid').value=settings.defPaid;
+    document.getElementById('sfWish').value=settings.defWish;
+    document.getElementById('sfColor').value='0';
+    const nextNo=Math.max(1,...staff.map(x=>x.staffNo||x.id))+1;
+    document.getElementById('sfNo').value=nextNo;
+    document.getElementById('sfPinAuto').value=pinFromStaffNo(nextNo);
+    document.getElementById('sfPinCustom').value='';
+    document.querySelector('input[name="sfMonthMaxMode"][value="fixed"]').checked=true;
+  }
+  onMonthMaxModeChange();
+  document.getElementById('staffModal').classList.add('open');
+}
+function onStaffNoInput(){
+  const no=document.getElementById('sfNo').value;
+  document.getElementById('sfPinAuto').value=pinFromStaffNo(no);
+}
+
+function saveStaff(){
+  const name=document.getElementById('sfName').value.trim();
+  if(!name){alert('氏名を入力してください');return;}
+  const mode=document.querySelector('input[name="sfMonthMaxMode"]:checked')?.value||'fixed';
+  const obj={
+    name,
+    role:document.getElementById('sfRole').value,
+    monthMax:+document.getElementById('sfMonthMax').value||160,
+    monthMaxLocked:mode==='fixed',
+    noMonthMax:mode==='none',
+    weekMax:+document.getElementById('sfWeekMax').value||40,
+    wage:+document.getElementById('sfWage').value||1200,
+    paidLeft:+document.getElementById('sfPaid').value||0,
+    wishLeft:+document.getElementById('sfWish').value||0,
+    colorIdx:+document.getElementById('sfColor').value,
+    staffNo:+document.getElementById('sfNo').value||1,
+    pin:document.getElementById('sfPinCustom').value.trim(),
+  };
+  if(editingStaffId){
+    const s=staff.find(x=>x.id===editingStaffId);
+    if(s) Object.assign(s,obj);
+  } else {
+    obj.id=nextId++;
+    staff.push(obj);
+  }
+  closeModal('staffModal');
+  renderStaffTable();
+  queueAutoSave();
+  toast('スタッフ情報を保存しました');
+}
+
+function delStaff(id){
+  if(auth.role!=='admin'){alert('管理者権限のみ実行できます');return;}
+  if(!confirm('このスタッフを削除しますか？')) return;
+  staff=staff.filter(s=>s.id!==id);
+  renderStaffTable();
+  queueAutoSave();
+}
+
+// ============================================================
+//  SETTINGS
+// ============================================================
+function openSettings(){
+  if(auth.role!=='admin'){alert('管理者権限のみ実行できます');return;}
+  ensureStaffingSettings();
+  document.getElementById('staffingSepWe').checked=!!settings.staffingSeparateWeekend;
+  renderStaffingSlotEditor();
+  onStaffingSepWeChange();
+  document.getElementById('togSalary').checked=settings.showSalary;
+  document.getElementById('togSalarySummary').checked=settings.showSalarySummary;
+  document.getElementById('togWeekend').checked=settings.showWeekend;
+  document.getElementById('togHours').checked=settings.showHours;
+  document.getElementById('storeName').value=settings.storeName||'';
+  document.getElementById('defaultWage').value=settings.defaultWage;
+  document.getElementById('defMonthMax').value=settings.defMonthMax;
+  document.getElementById('defWeekMax').value=settings.defWeekMax;
+  document.getElementById('defPaid').value=settings.defPaid;
+  document.getElementById('defWish').value=settings.defWish;
+  document.getElementById('adminPin').value=settings.adminPin||'0000';
+  renderShiftEditList();
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function saveSettings(){
+  settings.showSalary=document.getElementById('togSalary').checked;
+  settings.showSalarySummary=document.getElementById('togSalarySummary').checked;
+  settings.showWeekend=document.getElementById('togWeekend').checked;
+  settings.showHours=document.getElementById('togHours').checked;
+  settings.storeName=document.getElementById('storeName').value;
+  settings.defaultWage=+document.getElementById('defaultWage').value||1200;
+  settings.defMonthMax=+document.getElementById('defMonthMax').value||160;
+  settings.defWeekMax=+document.getElementById('defWeekMax').value||40;
+  settings.defPaid=+document.getElementById('defPaid').value||10;
+  settings.defWish=+document.getElementById('defWish').value||4;
+  settings.adminPin=document.getElementById('adminPin').value||'0000';
+  gatherStaffingSlotsFromForm();
+  settings.staffingSeparateWeekend=document.getElementById('staffingSepWe').checked;
+  ensureStaffingSettings();
+  queueAutoSave();
+}
+
+function calcHoursFromTime(start,end){
+  if(!start||!end) return 0;
+  const [sh,sm]=start.split(':').map(Number);
+  const [eh,em]=end.split(':').map(Number);
+  const mins=(eh*60+em)-(sh*60+sm);
+  return mins>0?Math.round(mins/60*10)/10:0;
+}
+
+function renderShiftEditList(){
+  const el=document.getElementById('shiftEditList');
+  // column header
+  let html=`<div style="display:grid;grid-template-columns:76px 90px 16px 90px 52px 36px auto;gap:6px;align-items:center;margin-bottom:4px;padding:0 2px">
+    <span style="font-size:10px;font-weight:700;color:var(--ink3)">シフト名</span>
+    <span style="font-size:10px;font-weight:700;color:var(--ink3)">開始時刻</span>
+    <span></span>
+    <span style="font-size:10px;font-weight:700;color:var(--ink3)">終了時刻</span>
+    <span style="font-size:10px;font-weight:700;color:var(--ink3)">勤務時間</span>
+    <span style="font-size:10px;font-weight:700;color:var(--ink3)">色</span>
+    <span></span>
+  </div>`;
+  html+=shiftTypes.map((sh,i)=>{
+    const h=sh.hours;
+    const hLabel=h>0?`<span style="font-size:13px;font-weight:700;color:var(--accent);font-family:'DM Mono',monospace">${h}</span><span style="font-size:10px;color:var(--ink3)">h</span>`
+      :`<span style="font-size:11px;color:var(--ink3)">—</span>`;
+    return `<div style="display:grid;grid-template-columns:76px 90px 16px 90px 52px 36px auto;gap:6px;align-items:center;margin-bottom:6px;padding:6px 8px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+      <input value="${sh.label}" onchange="shiftTypes[${i}].label=this.value;rebuildST();renderShiftEditList();queueAutoSave()"
+        style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;font-weight:600;background:var(--card)">
+      <input type="time" value="${sh.startTime||''}" id="st_start_${i}"
+        onchange="updateShiftTime(${i})"
+        style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:var(--card)">
+      <span style="font-size:11px;color:var(--ink3);text-align:center">〜</span>
+      <input type="time" value="${sh.endTime||''}" id="st_end_${i}"
+        onchange="updateShiftTime(${i})"
+        style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:var(--card)">
+      <div id="st_hours_${i}" style="text-align:center;min-width:48px;padding:5px 4px;background:var(--accent-soft);border-radius:6px;line-height:1.2">${hLabel}</div>
+      <input type="color" value="${sh.dot}"
+        onchange="shiftTypes[${i}].dot=this.value;shiftTypes[${i}].text=this.value;shiftTypes[${i}].bg=this.value+'22';rebuildST();queueAutoSave()"
+        style="height:32px;width:36px;border:1px solid var(--border);border-radius:6px;padding:2px;cursor:pointer">
+      <button class="btn btn-danger btn-xs" onclick="shiftTypes.splice(${i},1);rebuildST();renderShiftEditList();queueAutoSave()">削除</button>
+    </div>`;
+  }).join('');
+  el.innerHTML=html;
+}
+
+function updateShiftTime(i){
+  const start=document.getElementById('st_start_'+i)?.value||'';
+  const end=document.getElementById('st_end_'+i)?.value||'';
+  shiftTypes[i].startTime=start;
+  shiftTypes[i].endTime=end;
+  const h=calcHoursFromTime(start,end);
+  shiftTypes[i].hours=h;
+  // update time display string
+  if(start&&end){
+    shiftTypes[i].time=`${start.replace(':00','').replace(/^0/,'')}〜${end.replace(':00','').replace(/^0/,'')}`;
+  }
+  rebuildST();
+  // update just the hours badge without full re-render
+  const badge=document.getElementById('st_hours_'+i);
+  if(badge){
+    badge.innerHTML=h>0
+      ?`<span style="font-size:13px;font-weight:700;color:var(--accent);font-family:'DM Mono',monospace">${h}</span><span style="font-size:10px;color:var(--ink3)">h</span>`
+      :`<span style="font-size:11px;color:var(--ink3)">—</span>`;
+  }
+  queueAutoSave();
+}
+
+function addShiftType(){
+  shiftTypes.push({id:'custom_'+Date.now(),label:'新規',startTime:'',endTime:'',time:'—',hours:0,bg:'#f0f0f8',text:'#9898b8',dot:'#9898b8'});
+  rebuildST();
+  renderShiftEditList();
+  queueAutoSave();
+}
+
+function switchMTab(el,panelId){
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.mpanel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function renderAll(){renderMonthly();if(document.getElementById('page-staff').classList.contains('active'))renderStaffTable();}
+
+// ============================================================
+//  TOAST
+// ============================================================
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',2400);
+}
+
+function setSaveState(text,isSaved){
+  const el=document.getElementById('saveState');
+  if(!el) return;
+  el.textContent=text;
+  el.classList.toggle('ok',!!isSaved);
+}
+function snapshotState(){
+  return {
+    version:1,
+    savedAt:new Date().toISOString(),
+    settings,shiftTypes,staff,nextId,editingStaffId,monthShifts,wishConditions,currentYear,currentMonth,auth
+  };
+}
+function applyState(data){
+  if(!data) return;
+  settings=data.settings||settings;
+  shiftTypes=data.shiftTypes||shiftTypes;
+  staff=data.staff||staff;
+  nextId=data.nextId||nextId;
+  editingStaffId=null;
+  monthShifts=data.monthShifts||monthShifts;
+  wishConditions=data.wishConditions||wishConditions;
+  currentYear=data.currentYear??currentYear;
+  currentMonth=data.currentMonth??currentMonth;
+  auth=data.auth||auth;
+  ensureStaffingSettings();
+  rebuildST();
+}
+function openAuthModal(){
+  const roleSel=document.getElementById('authRoleSel');
+  const staffSel=document.getElementById('authStaffSel');
+  roleSel.value=auth.role;
+  staffSel.innerHTML=staff.map(s=>`<option value="${s.id}">No.${s.staffNo||s.id} ${s.name}</option>`).join('');
+  if(auth.staffId) staffSel.value=String(auth.staffId);
+  document.getElementById('authPin').value='';
+  onAuthRoleChange();
+  document.getElementById('authModal').classList.add('open');
+}
+function onAuthRoleChange(){
+  const role=document.getElementById('authRoleSel').value;
+  document.getElementById('authStaffWrap').style.display=role==='staff'?'block':'none';
+}
+function applyAuth(){
+  const role=document.getElementById('authRoleSel').value;
+  const pin=document.getElementById('authPin').value||'';
+  if(role==='admin'){
+    if(pin!==(settings.adminPin||'0000')){alert('管理者PINが一致しません');return;}
+    auth={role:'admin',staffId:null};
+  }else{
+    const sid=+document.getElementById('authStaffSel').value;
+    const s=staff.find(x=>x.id===sid);
+    if(!s){alert('スタッフが見つかりません');return;}
+    if(pin!==getStaffPin(s)){alert('スタッフPINが一致しません');return;}
+    auth={role:'staff',staffId:sid};
+  }
+  closeModal('authModal');
+  applyRoleUI();
+  queueAutoSave();
+  toast(role==='admin'?'管理者権限に切り替えました':'スタッフ権限に切り替えました');
+}
+function applyRoleUI(){
+  const isAdmin=auth.role==='admin';
+  const me=staff.find(s=>s.id===auth.staffId);
+  const badge=document.getElementById('authBadge');
+  badge.textContent=isAdmin?'管理者':`スタッフ: ${me?me.name:''}`;
+  badge.style.background=isAdmin?'#eef2ff':'#e8f9f1';
+  badge.style.color=isAdmin?'var(--accent)':'var(--green)';
+  document.getElementById('btnAutoFill').style.display=isAdmin?'inline-flex':'none';
+  document.getElementById('btnSettingsTop').style.display=isAdmin?'inline-flex':'none';
+  document.getElementById('btnBackup').style.display=isAdmin?'inline-flex':'none';
+  document.getElementById('btnRestore').style.display=isAdmin?'inline-flex':'none';
+  document.getElementById('navSettings').style.display=isAdmin?'flex':'none';
+  document.getElementById('navStaff').style.display=isAdmin?'flex':'none';
+  const mnavStaff=document.getElementById('mnav-staff');
+  if(mnavStaff) mnavStaff.style.display=isAdmin?'flex':'none';
+  const dAutoFill=document.getElementById('drawerAutoFill');
+  if(dAutoFill) dAutoFill.style.display=isAdmin?'flex':'none';
+  const dBackup=document.getElementById('drawerBackup');
+  if(dBackup) dBackup.style.display=isAdmin?'flex':'none';
+  const dRestore=document.getElementById('drawerRestore');
+  if(dRestore) dRestore.style.display=isAdmin?'flex':'none';
+  const btnPin=document.getElementById('btnStaffPin');
+  if(btnPin) btnPin.style.display=isAdmin?'none':'inline-flex';
+  if(!isAdmin&&document.getElementById('page-staff').classList.contains('active')) showPage('monthly');
+  renderAll();
+}
+function saveToLocal(showToastMsg){
+  try{
+    localStorage.setItem(STORE_KEY,JSON.stringify(snapshotState()));
+    const t=new Date();
+    const hh=String(t.getHours()).padStart(2,'0');
+    const mm=String(t.getMinutes()).padStart(2,'0');
+    setSaveState(`保存済み ${hh}:${mm}`,true);
+    if(showToastMsg) toast('ローカルに保存しました');
+  }catch(e){
+    console.error(e);
+    setSaveState('保存失敗',false);
+    if(showToastMsg) alert('保存に失敗しました。ブラウザの容量設定をご確認ください。');
+  }
+}
+function loadFromLocal(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(!raw) return false;
+    const data=JSON.parse(raw);
+    applyState(data);
+    return true;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+function queueAutoSave(){
+  setSaveState('編集中...',false);
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>saveToLocal(false),350);
+}
+function exportBackup(){
+  const payload=JSON.stringify(snapshotState(),null,2);
+  const blob=new Blob([payload],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const now=new Date();
+  const stamp=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  a.download=`shiftflow_backup_${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importBackup(evt){
+  const file=evt.target.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      applyState(data);
+      renderAll();
+      saveToLocal(false);
+      toast('バックアップを復元しました');
+    }catch(e){
+      console.error(e);
+      alert('バックアップの読み込みに失敗しました。JSON形式をご確認ください。');
+    }finally{
+      evt.target.value='';
+    }
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+// ============================================================
+//  MOBILE MENU
+// ============================================================
+function toggleMobileDrawer(){
+  const isOpen=document.getElementById('mobileDrawer').classList.contains('open');
+  document.getElementById('mobileDrawer').classList.toggle('open',!isOpen);
+  document.getElementById('mobOverlay').classList.toggle('open',!isOpen);
+  document.getElementById('mnav-menu').classList.toggle('active',!isOpen);
+}
+function closeMobileDrawer(){
+  document.getElementById('mobileDrawer')?.classList.remove('open');
+  document.getElementById('mobOverlay')?.classList.remove('open');
+  document.getElementById('mnav-menu')?.classList.remove('active');
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+initSumMonthSel();
+ensureMonth(currentYear,currentMonth);
+if(loadFromLocal()) initSumMonthSel();
+if(!settings.adminPin) settings.adminPin='0000';
+ensureStaffingSettings();
+staff.forEach((s,i)=>{
+  if(!s.staffNo) s.staffNo=i+1;
+  if(s.pin===undefined||s.pin===null) s.pin='';
+});
+applyRoleUI();
+renderMonthly();
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){
+    e.preventDefault();
+    saveToLocal(true);
+  }
+});
+</script>
+</body>
+</html>
