@@ -167,6 +167,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink)
   .layout{display:block}.main{overflow:visible}
   .content{padding:0;overflow:visible}
   .page{display:block!important}
+  #page-board{display:none!important}
   .shift-wrap{overflow:visible}
   .shift-table{min-width:unset}
   body{font-size:9px}
@@ -332,6 +333,10 @@ body.locked .layout,body.locked .mobile-nav,body.locked .mobile-drawer,body.lock
       <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
       月次集計
     </div>
+    <div class="nav-item" onclick="showPage('board')">
+      <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      掲示板
+    </div>
     <div class="nav-sep"></div>
     <div class="nav-item" onclick="showPage('staff')" id="navStaff">
       <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
@@ -418,6 +423,37 @@ body.locked .layout,body.locked .mobile-nav,body.locked .mobile-drawer,body.lock
       </div>
     </div>
 
+    <!-- ===== BOARD ===== -->
+    <div class="page" id="page-board">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-hd">新規投稿</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:center">
+          <label style="font-size:11px;color:var(--ink3)">カテゴリ</label>
+          <select id="boardCat" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px">
+            <option value="chat">雑談</option>
+            <option value="info">事務連絡</option>
+            <option value="notice">お知らせ</option>
+          </select>
+        </div>
+        <textarea id="boardText" rows="3" maxlength="2000" placeholder="メッセージを入力（Ctrl または ⌘+Enter で投稿）"
+          style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;resize:vertical;outline:none"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')submitPost()"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="submitPost()">投稿する</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:12px;color:var(--ink3)">投稿: <b id="boardCount" style="color:var(--ink)">0</b>件</span>
+        <select onchange="setBoardSort(this.value)" style="margin-left:auto;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px">
+          <option value="new">新しい順</option>
+          <option value="old">古い順</option>
+          <option value="likes">いいね順</option>
+        </select>
+      </div>
+      <div id="boardList"></div>
+    </div>
+
     <!-- ===== STAFF ===== -->
     <div class="page" id="page-staff">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px" class="no-print">
@@ -492,6 +528,10 @@ body.locked .layout,body.locked .mobile-nav,body.locked .mobile-drawer,body.lock
   <button class="mnav-item" id="mnav-summary" onclick="showPage('summary')">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
     集計
+  </button>
+  <button class="mnav-item" id="mnav-board" onclick="showPage('board')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+    掲示板
   </button>
   <button class="mnav-item" id="mnav-staff" onclick="showPage('staff')">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg>
@@ -786,7 +826,7 @@ let staff=[
 ];
 let nextId=10;
 let editingStaffId=null;
-let auth={role:'admin',staffId:null};
+let auth={role:null,staffId:null}; // 未ログイン状態で開始（ロック画面でログイン後に設定）
 
 // monthShifts[YYYY-MM][staffId][day1..31] = shiftTypeId
 let monthShifts={};
@@ -960,9 +1000,9 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={'monthly':0,'summary':1,'staff':2};
+  const map={'monthly':0,'summary':1,'board':2,'staff':3};
   document.querySelectorAll('.nav-item')[map[id]]?.classList.add('active');
-  const titles={monthly:'月次シフト表',summary:'月次集計',staff:'スタッフ管理'};
+  const titles={monthly:'月次シフト表',summary:'月次集計',board:'掲示板',staff:'スタッフ管理'};
   document.getElementById('topTitle').textContent=titles[id]||'';
   // mobile nav sync
   document.querySelectorAll('.mnav-item').forEach(n=>n.classList.remove('active'));
@@ -970,6 +1010,7 @@ function showPage(id){
   closeMobileDrawer();
   if(id==='monthly') renderMonthly();
   if(id==='summary') renderSummary();
+  if(id==='board') renderBoard();
   if(id==='staff') renderStaffTable();
 }
 function canViewSalary(){return auth.role==='admin';}
@@ -1789,6 +1830,114 @@ function autoFill(){
 }
 
 // ============================================================
+//  BOARD（掲示板：事務連絡・雑談）
+//  boardPosts[] = {id, userKey, authorName, cat, text, ts, likes:[userKey], pinned}
+// ============================================================
+let boardPosts=[];
+let nextPostId=1;
+let boardSort='new';
+const BOARD_CATS=[
+  {id:'notice',label:'お知らせ',cls:'b-red'},
+  {id:'info',  label:'事務連絡',cls:'b-blue'},
+  {id:'chat',  label:'雑談',cls:'b-green'},
+];
+function boardCat(id){return BOARD_CATS.find(c=>c.id===id)||BOARD_CATS[2];}
+function boardUserKey(){return auth.role==='admin'?'admin':'staff:'+auth.staffId;}
+function boardUserName(){
+  if(auth.role==='admin') return '管理者';
+  const me=staff.find(s=>s.id===auth.staffId);
+  return me?me.name:'（退職済み）';
+}
+function fmtPostTime(ts){
+  const d=new Date(ts), now=new Date();
+  const y=d.getFullYear()!==now.getFullYear()?d.getFullYear()+'/':'';
+  return `${y}${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function submitPost(){
+  if(!auth.role){return;}
+  const txtEl=document.getElementById('boardText');
+  const txt=(txtEl.value||'').trim();
+  if(!txt){toast('本文を入力してください');return;}
+  if(txt.length>2000){toast('本文は2000文字以内にしてください');return;}
+  const cat=document.getElementById('boardCat').value;
+  boardPosts.push({id:nextPostId++,userKey:boardUserKey(),authorName:boardUserName(),cat,text:txt,ts:Date.now(),likes:[],pinned:false});
+  txtEl.value='';
+  queueAutoSave();
+  renderBoard();
+  toast('投稿しました');
+}
+function toggleLike(id){
+  const p=boardPosts.find(x=>x.id===id); if(!p) return;
+  if(!Array.isArray(p.likes)) p.likes=[];
+  const k=boardUserKey();
+  const i=p.likes.indexOf(k);
+  if(i>=0) p.likes.splice(i,1); else p.likes.push(k);
+  queueAutoSave();
+  renderBoard();
+}
+function togglePin(id){
+  if(auth.role!=='admin'){alert('ピン留めは管理者のみ実行できます');return;}
+  const p=boardPosts.find(x=>x.id===id); if(!p) return;
+  p.pinned=!p.pinned;
+  queueAutoSave();
+  renderBoard();
+  toast(p.pinned?'ピン留めしました':'ピン留めを解除しました');
+}
+function delPost(id){
+  const p=boardPosts.find(x=>x.id===id); if(!p) return;
+  if(auth.role!=='admin'&&p.userKey!==boardUserKey()){alert('自分の投稿のみ削除できます');return;}
+  if(!confirm('この投稿を削除しますか？')) return;
+  boardPosts=boardPosts.filter(x=>x.id!==id);
+  queueAutoSave();
+  renderBoard();
+}
+function setBoardSort(v){boardSort=v;renderBoard();}
+function renderBoard(){
+  const wrap=document.getElementById('boardList');
+  if(!wrap) return;
+  const my=boardUserKey();
+  const sorted=[...boardPosts].sort((a,b)=>{
+    if(!!a.pinned!==!!b.pinned) return a.pinned?-1:1;
+    if(boardSort==='likes') return ((b.likes||[]).length-(a.likes||[]).length)||(b.ts-a.ts);
+    if(boardSort==='old') return a.ts-b.ts;
+    return b.ts-a.ts;
+  });
+  const cntEl=document.getElementById('boardCount');
+  if(cntEl) cntEl.textContent=boardPosts.length;
+  if(!sorted.length){
+    wrap.innerHTML='<div class="card" style="text-align:center;color:var(--ink3);font-size:12px;padding:34px 16px">まだ投稿がありません。最初のメッセージをどうぞ！</div>';
+    return;
+  }
+  wrap.innerHTML=sorted.map(p=>{
+    const cat=boardCat(p.cat);
+    const likes=Array.isArray(p.likes)?p.likes:[];
+    const liked=likes.includes(my);
+    const canDel=auth.role==='admin'||p.userKey===my;
+    const isAdminPost=p.userKey==='admin';
+    return `<div class="card card-sm" style="margin-bottom:10px${p.pinned?';border-color:#e8c76a;background:#fffdf0':''}">
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:6px">
+        ${p.pinned?'<span title="ピン留め中" style="font-size:13px">📌</span>':''}
+        <span class="badge ${cat.cls}">${escHtml(cat.label)}</span>
+        <b style="font-size:12px">${escHtml(p.authorName)}</b>
+        ${isAdminPost?'<span class="badge b-purple" style="font-size:9px">管理者</span>':''}
+        <span style="font-size:10px;color:var(--ink3)">${fmtPostTime(p.ts)}</span>
+        <span style="margin-left:auto;display:flex;gap:5px;flex-shrink:0">
+          ${auth.role==='admin'?`<button class="btn btn-ghost btn-xs" onclick="togglePin(${p.id})">${p.pinned?'ピン解除':'📌 ピン'}</button>`:''}
+          ${canDel?`<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="delPost(${p.id})">削除</button>`:''}
+        </span>
+      </div>
+      <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${escHtml(p.text)}</div>
+      <div style="margin-top:8px">
+        <button class="btn btn-xs" onclick="toggleLike(${p.id})"
+          style="border:1px solid ${liked?'#f3b3c0':'var(--border)'};background:${liked?'#ffeef2':'transparent'};color:${liked?'#d6336c':'var(--ink3)'}">
+          ♥ いいね${likes.length?` ${likes.length}`:''}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
 //  SUMMARY
 // ============================================================
 function initSumMonthSel(){
@@ -2237,7 +2386,7 @@ function snapshotState(){
   return {
     version:2,
     savedAt:new Date().toISOString(),
-    settings,shiftTypes,staff,nextId,monthShifts,wishConditions,wishNotes,currentYear,currentMonth
+    settings,shiftTypes,staff,nextId,monthShifts,wishConditions,wishNotes,boardPosts,nextPostId,currentYear,currentMonth
   };
 }
 function applyState(data){
@@ -2250,6 +2399,9 @@ function applyState(data){
   monthShifts=data.monthShifts||monthShifts;
   wishConditions=data.wishConditions||wishConditions;
   wishNotes=data.wishNotes||wishNotes||{};
+  boardPosts=Array.isArray(data.boardPosts)?data.boardPosts:boardPosts;
+  boardPosts.forEach(p=>{if(!Array.isArray(p.likes))p.likes=[];});
+  nextPostId=Math.max(data.nextPostId||1,...boardPosts.map(p=>(p.id||0)+1),1);
   currentYear=data.currentYear??currentYear;
   currentMonth=data.currentMonth??currentMonth;
   // 認証状態はバックアップ・保存データから復元しない（常にログインが必要）
