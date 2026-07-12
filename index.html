@@ -397,6 +397,7 @@ body.locked .layout,body.locked .mobile-nav,body.locked .mobile-drawer,body.lock
       <div class="shift-wrap">
         <table class="shift-table" id="shiftTable"></table>
       </div>
+      <div id="monthNotesWrap" style="margin-top:12px"></div>
     </div>
 
     <!-- ===== SUMMARY ===== -->
@@ -690,9 +691,13 @@ body.locked .layout,body.locked .mobile-nav,body.locked .mobile-drawer,body.lock
         </div>
         <div style="font-size:11px;color:var(--ink3);margin-left:auto">セルをクリックして希望シフトを設定できます。「なし」は自動生成に任せます。</div>
       </div>
+      <div class="field" style="margin-bottom:10px">
+        <label>今月の備考（自由記載：シフト作成者への伝達事項など）</label>
+        <textarea id="wishMonthNote" rows="2" placeholder="例：試験期間のため15日以降は夜のみ可／土曜は21時まで希望　など" onchange="onWishMonthNoteChange()" style="resize:vertical"></textarea>
+      </div>
       <div id="wishGridWrap" style="overflow-x:auto"></div>
       <div style="margin-top:12px;padding:10px 12px;background:var(--accent-soft);border-radius:var(--r);font-size:11px;color:var(--accent)">
-        <b>💡 使い方：</b> 希望シフト・希望休・有給など確定させたい日を先に設定 → 「保存して閉じる」→ 「自動生成」で残りの日を自動で埋めます
+        <b>💡 使い方：</b> 希望シフト・希望休・有給など確定させたい日を先に設定 → 「保存して閉じる」→ 「自動生成」で残りの日を自動で埋めます。備考欄は管理者（店長）に伝わるメモです（自動生成には影響しません。シフト表に📝マークで表示されます）
       </div>
       <div class="actions">
         <button class="btn btn-danger btn-xs" onclick="clearWishAll()" style="margin-right:auto">この月の希望をすべてクリア</button>
@@ -1205,10 +1210,14 @@ function renderMonthly(){
       const lockMark=isLocked
         ?`<span title="希望確定" style="position:absolute;top:1px;right:2px;font-size:8px;color:${isWorkWish?'#c47d00':'#d63b3b'}">🔒</span>`
         :'';
+      const dayNote=wishNotes[wk2]?.[s.id]?.days?.[d]||'';
+      const noteMark=dayNote
+        ?`<span title="${escHtml(dayNote)}" style="position:absolute;bottom:0;right:2px;font-size:8px;cursor:help">📝</span>`
+        :'';
       const warnOutline=overWeek&&sh.hours>0?';outline:2px solid var(--red)':'';
       const wishOutline=isLocked?`;box-shadow:0 0 0 2px ${isWorkWish?'#e8a800':'#e8608a'} inset`:'' ;
       cells+=`<td class="shift-cell" style="position:relative;${cellBg}" onclick="openDrop(event,${s.id},${d},'${k}')">
-        ${lockMark}
+        ${lockMark}${noteMark}
         <span class="shift-btn" style="background:${sh.bg};color:${sh.text}${warnOutline}${wishOutline}">${sh.label}</span>
       </td>`;
     });
@@ -1350,6 +1359,31 @@ function renderMonthly(){
   if(overAlertNames.length) badges+=`<span class="badge b-red" style="margin-right:6px">⚠ 上限超過: ${escHtml(overAlertNames.join('、'))}</span>`;
   if(errorDays>0) badges+=`<span class="badge b-red">⚠ 人員不足: ${errorDays}日</span>`;
   alBadge.innerHTML=badges;
+
+  // ── 備考一覧（管理者は全員分、スタッフは本人分のみ） ──
+  const notesWrap=document.getElementById('monthNotesWrap');
+  if(notesWrap){
+    const viewList=auth.role==='staff'?staff.filter(s=>s.id===auth.staffId):staff;
+    const blocks=[];
+    viewList.forEach(s=>{
+      const n=wishNotes[k]?.[s.id];
+      if(!n) return;
+      const parts=[];
+      if(n.month&&String(n.month).trim()) parts.push(`<span style="color:var(--ink)">${escHtml(n.month)}</span>`);
+      Object.keys(n.days||{}).map(Number).sort((a,b)=>a-b).forEach(d=>{
+        if(n.days[d]) parts.push(`<span style="white-space:nowrap"><b style="color:var(--accent)">${m+1}/${d}</b> ${escHtml(n.days[d])}</span>`);
+      });
+      if(parts.length){
+        blocks.push(`<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:6px;flex-wrap:wrap">
+          <b style="font-size:11px;flex-shrink:0">${escHtml(s.name)}</b>
+          <span style="font-size:11px;color:var(--ink2);line-height:1.7">${parts.join('<span style="color:var(--border2)">　｜　</span>')}</span>
+        </div>`);
+      }
+    });
+    notesWrap.innerHTML=blocks.length
+      ?`<div class="card card-sm"><div class="card-hd" style="margin-bottom:8px">📝 備考（希望条件入力より）</div>${blocks.join('')}</div>`
+      :'';
+  }
 }
 
 // ============================================================
@@ -1399,10 +1433,21 @@ function applyShift(sid){
 // ============================================================
 let wishConditions={};
 
+// 備考（自由記載）：wishNotes[k][staffId] = {month:'月単位の備考', days:{日:'その日の備考'}}
+let wishNotes={};
+
 function ensureWish(k){
   if(!wishConditions[k]) wishConditions[k]={};
   staff.forEach(s=>{ if(!wishConditions[k][s.id]) wishConditions[k][s.id]={}; });
   return wishConditions[k];
+}
+function ensureWishNotes(k){
+  if(!wishNotes[k]||typeof wishNotes[k]!=='object') wishNotes[k]={};
+  staff.forEach(s=>{
+    if(!wishNotes[k][s.id]||typeof wishNotes[k][s.id]!=='object') wishNotes[k][s.id]={month:'',days:{}};
+    if(!wishNotes[k][s.id].days) wishNotes[k][s.id].days={};
+  });
+  return wishNotes[k];
 }
 
 function openWishModal(){
@@ -1446,14 +1491,18 @@ function renderWishGrid(){
   const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
   const k=mkKey(y,m);
   ensureWish(k);
+  ensureWishNotes(k);
   const days=daysInMonth(y,m);
   const wishes=wishConditions[k][sid]||{};
+  const notes=wishNotes[k][sid]||{month:'',days:{}};
+  document.getElementById('wishMonthNote').value=notes.month||'';
 
   let html=`<table style="border-collapse:collapse;min-width:max-content;width:100%">
     <thead><tr>
       <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:left;white-space:nowrap;min-width:70px">日付</th>
       <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:center">希望シフト</th>
       <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:center;min-width:70px">ロック</th>
+      <th style="background:var(--bg);font-size:11px;font-weight:700;color:var(--ink2);padding:7px 10px;border:1px solid var(--border);text-align:left;min-width:160px">備考（自由記載）</th>
     </tr></thead><tbody>`;
 
   for(let d=1;d<=days;d++){
@@ -1482,6 +1531,13 @@ function renderWishGrid(){
           ?`<span style="font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-soft);padding:2px 8px;border-radius:10px">🔒 確定</span>`
           :`<span style="font-size:10px;color:var(--ink3)">自動</span>`}
       </td>
+      <td style="border:1px solid var(--border);padding:2px 4px;min-width:160px">
+        <input type="text" value="${escHtml(notes.days[d]||'')}" data-day="${d}" maxlength="200"
+          onchange="onWishNoteChange(this,${sid})" placeholder="—"
+          style="width:100%;border:1px solid transparent;background:transparent;font-family:inherit;font-size:11px;padding:5px 6px;border-radius:6px;outline:none"
+          onfocus="this.style.border='1px solid var(--accent)';this.style.background='var(--card)'"
+          onblur="this.style.border='1px solid transparent';this.style.background='transparent'">
+      </td>
     </tr>`;
   }
   html+=`</tbody></table>`;
@@ -1504,10 +1560,32 @@ function onWishChange(sel,staffId){
   queueAutoSave();
 }
 
+function onWishNoteChange(inp,staffId){
+  const day=parseInt(inp.dataset.day);
+  const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
+  const k=mkKey(y,m);
+  ensureWishNotes(k);
+  const v=inp.value.trim().slice(0,200);
+  if(v) wishNotes[k][staffId].days[day]=v;
+  else delete wishNotes[k][staffId].days[day];
+  queueAutoSave();
+}
+function onWishMonthNoteChange(){
+  const sid=parseInt(document.getElementById('wishStaffSel').value);
+  if(!sid) return;
+  const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
+  const k=mkKey(y,m);
+  ensureWishNotes(k);
+  wishNotes[k][sid].month=document.getElementById('wishMonthNote').value.trim().slice(0,500);
+  queueAutoSave();
+}
+
 function saveWish(){
   // already saved reactively; just close
+  onWishMonthNoteChange();
   closeModal('wishModal');
   queueAutoSave();
+  renderMonthly();
   toast('希望条件を保存しました');
 }
 
@@ -1515,12 +1593,15 @@ function clearWishAll(){
   const [y,m]=document.getElementById('wishMonthSel').value.split('-').map(Number);
   const k=mkKey(y,m);
   if(auth.role==='staff'){
-    if(!confirm('この月のあなたの希望条件をクリアしますか？')) return;
+    if(!confirm('この月のあなたの希望条件（備考含む）をクリアしますか？')) return;
     ensureWish(k);
+    ensureWishNotes(k);
     wishConditions[k][auth.staffId]={};
+    wishNotes[k][auth.staffId]={month:'',days:{}};
   }else{
-    if(!confirm('この月の全スタッフの希望条件をクリアしますか？')) return;
+    if(!confirm('この月の全スタッフの希望条件（備考含む）をクリアしますか？')) return;
     wishConditions[k]={};
+    wishNotes[k]={};
   }
   renderWishGrid();
   queueAutoSave();
@@ -2156,7 +2237,7 @@ function snapshotState(){
   return {
     version:2,
     savedAt:new Date().toISOString(),
-    settings,shiftTypes,staff,nextId,monthShifts,wishConditions,currentYear,currentMonth
+    settings,shiftTypes,staff,nextId,monthShifts,wishConditions,wishNotes,currentYear,currentMonth
   };
 }
 function applyState(data){
@@ -2168,6 +2249,7 @@ function applyState(data){
   editingStaffId=null;
   monthShifts=data.monthShifts||monthShifts;
   wishConditions=data.wishConditions||wishConditions;
+  wishNotes=data.wishNotes||wishNotes||{};
   currentYear=data.currentYear??currentYear;
   currentMonth=data.currentMonth??currentMonth;
   // 認証状態はバックアップ・保存データから復元しない（常にログインが必要）
